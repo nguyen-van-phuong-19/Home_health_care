@@ -1,0 +1,350 @@
+{
+  "main": {
+    "id": "dde3c157b1f26884",
+    "type": "split",
+    "children": [
+      {
+        "id": "230ff972b8d8434b",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "146a5c97f025f6f4",
+            "type": "leaf",
+            "state": {
+              "type": "empty",
+              "state": {},
+              "icon": "lucide-file",
+              "title": "New tab"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "6d4eea4b684933df",
+    "type": "split",
+    "children": [
+      {
+        "id": "4a7aacc510d3ea2c",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "81fdf611ea148837",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-folder-closed",
+              "title": "Files"
+            }
+          },
+          {
+            "id": "19f253db295912bc",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-search",
+              "title": "Search"
+            }
+          },
+          {
+            "id": "507452651a6266c7",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {},
+              "icon": "lucide-bookmark",
+              "title": "Bookmarks"
+            }
+          },
+          {
+            "id": "882b1444eb6212cf",
+            "type": "leaf",
+            "state": {
+              "type": "recent-files",
+              "state": {},
+              "icon": "lucide-file",
+              "title": "Plugin no longer active"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 316.5
+  },
+  "right": {
+    "id": "126491c6da98ac18",
+    "type": "split",
+    "children": [
+      {
+        "id": "dbf38b7ac3f75f71",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "75a868cb12b72bf1",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true
+              },
+              "icon": "lucide-tags",
+              "title": "Tags"
+            }
+          },
+          {
+            "id": "9e6bf402dd40c553",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "file": "01 - Projects/UWB Radar/Weekly Documents/Week 9's work.md",
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-coming-in",
+              "title": "Backlinks for Week 9's work"
+            }
+          },
+          {
+            "id": "97fdd55ddffd4dd4",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "file": "01 - Projects/Lock the Door/Project goals.md",
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-going-out",
+              "title": "Outgoing links from Project goals"
+            }
+          },
+          {
+            "id": "90930f216268bfc7",
+            "type": "leaf",
+            "state": {
+              "type": "calendar",
+              "state": {},
+              "icon": "lucide-file",
+              "title": "Plugin no longer active"
+            }
+          },
+          {
+            "id": "5fdb1b170822d5f3",
+            "type": "leaf",
+            "state": {
+              "type": "all-properties",
+              "state": {
+                "sortOrder": "frequency",
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-archive",
+              "title": "All properties"
+            }
+          },
+          {
+            "id": "a273a840d4f59e59",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "file": "06 - Daily/12-2024/2024-12-09.md"
+              },
+              "icon": "lucide-list",
+              "title": "Outline of 2024-12-09"
+            }
+          },
+          {
+            "id": "9bc22579ccd0bfbf",
+            "type": "leaf",
+            "state": {
+              "type": "timeline",
+              "state": {},
+              "icon": "lucide-file",
+              "title": "Plugin no longer active"
+            }
+          },
+          {
+            "id": "6ebb47d8218b458d",
+            "type": "leaf",
+            "state": {
+              "type": "QUICKSHARE_SIDE_VIEW",
+              "state": {},
+              "icon": "lucide-file",
+              "title": "Plugin no longer active"
+            }
+          },
+          {
+            "id": "c7d3fabe7bd67d91",
+            "type": "leaf",
+            "state": {
+              "type": "review-queue-list-view",
+              "state": {},
+              "icon": "lucide-file",
+              "title": "Plugin no longer active"
+            }
+          },
+          {
+            "id": "9afa015077d5868d",
+            "type": "leaf",
+            "state": {
+              "type": "timeline",
+              "state": {},
+              "icon": "lucide-file",
+              "title": "Plugin no longer active"
+            }
+          },
+          {
+            "id": "e412a018e8f159ab",
+            "type": "leaf",
+            "state": {
+              "type": "QUICKSHARE_SIDE_VIEW",
+              "state": {},
+              "icon": "lucide-file",
+              "title": "Plugin no longer active"
+            }
+          },
+          {
+            "id": "21be0392b99039d9",
+            "type": "leaf",
+            "state": {
+              "type": "review-queue-list-view",
+              "state": {},
+              "icon": "lucide-file",
+              "title": "Plugin no longer active"
+            }
+          },
+          {
+            "id": "449f37dce33c3a7b",
+            "type": "leaf",
+            "state": {
+              "type": "timeline",
+              "state": {},
+              "icon": "calendar-with-checkmark",
+              "title": "Timeline"
+            }
+          },
+          {
+            "id": "ec9a3578766b291e",
+            "type": "leaf",
+            "state": {
+              "type": "QUICKSHARE_SIDE_VIEW",
+              "state": {},
+              "icon": "cloud",
+              "title": "QuickShare"
+            }
+          },
+          {
+            "id": "aae80c0c895558ee",
+            "type": "leaf",
+            "state": {
+              "type": "review-queue-list-view",
+              "state": {},
+              "icon": "SpacedRepIcon",
+              "title": "Notes Review Queue"
+            }
+          }
+        ],
+        "currentTab": 14
+      }
+    ],
+    "direction": "horizontal",
+    "width": 386.5,
+    "collapsed": true
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:Open quick switcher": true,
+      "command-palette:Open command palette": false,
+      "graph:Open graph view": false,
+      "daily-notes:Open today's daily note": false,
+      "zk-prefixer:Create new unique note": false,
+      "canvas:Create new canvas": true,
+      "templates:Insert template": false,
+      "audio-recorder:Start/stop recording": false,
+      "publish:Publish changes...": true,
+      "workspaces:Manage workspace layouts": true,
+      "markdown-importer:Open format converter": false,
+      "obsidian-advanced-slides:Show Slide Preview": false,
+      "table-editor-obsidian:Advanced Tables Toolbar": false,
+      "callout-manager:Insert Callout": false,
+      "obsidian-day-planner:Timeline": false,
+      "digitalgarden:Digital Garden Publication Center": false,
+      "obsidian-excalidraw-plugin:Create new drawing": false,
+      "homepage:Open homepage": false,
+      "obsidian-importer:Open Importer": false,
+      "obsidian-spaced-repetition:Review flashcards": false,
+      "templater-obsidian:Templater": false
+    }
+  },
+  "active": "146a5c97f025f6f4",
+  "lastOpenFiles": [
+    "01 - Projects/Lock the Door/Project goals.md",
+    "06 - Daily/12-2024/2024-12-06.md",
+    "06 - Daily/12-2024/2024-12-08.md",
+    "01 - Projects/Lock the Door/Weekly Documents/Week 1's work - Lock the door.md",
+    "06 - Daily/12-2024/2024-12-09.md",
+    "conflict-files-obsidian-git.md",
+    "01 - Projects/Lock the Door/Weekly Documents",
+    "01 - Projects/Lock the Door",
+    "01 - Projects/UWB Radar/Weekly Documents/Week 9's work.md",
+    "06 - Daily/12-2024/2024-12-02.md",
+    "06 - Daily/11-2024/2024-11-28.md",
+    "06 - Daily/11-2024",
+    "06 - Daily/10-2024/2024-10-11.md",
+    "Chats/New Chat.md",
+    "06 - Daily/12-2024",
+    "01 - Projects/UWB Radar/Weekly Documents/Week 7+8's work.md",
+    "Chats",
+    "01 - Projects/UWB Radar/Permanent/Scalar Kalman Filter.md",
+    "07 - Archives/Image/Pasted image 20241010114131.png",
+    "07 - Archives/Image/Pasted image 20241010114117.png",
+    "07 - Archives/Image/Pasted image 20241010113222.png",
+    "06 - Daily/10-2024/2024-10-10.md",
+    "00 - Study/Book/Fundamentals of Statisticcal Signal Processing Estimation Theory/Chapter 2 - Minimum Variance Unbiased Estimation.md",
+    "07 - Archives/Image/Pasted image 20241009160016.png",
+    "07 - Archives/Image/Pasted image 20241009155846.png",
+    "07 - Archives/Image/Pasted image 20241009155820.png",
+    "07 - Archives/Image/Pasted image 20241009155750.png",
+    "07 - Archives/Image/Pasted image 20241009155730.png",
+    "07 - Archives/Image/Pasted image 20241009155634.png",
+    "07 - Archives/Image/Pasted image 20241009155525.png",
+    "00 - Study/Book/Fundamentals of Statisticcal Signal Processing Estimation Theory/Chapter 1 - Introduction.md",
+    "06 - Daily/10-2024/2024-10-09.md",
+    "00 - Study/English/English 3/Part 1.md",
+    "06 - Daily/10-2024/2024-10-08.md",
+    "00 - Study/English/English For Specific Purposes",
+    "00 - Study/English/English 2",
+    "00 - Study/English/English 3",
+    "01 - Projects/UWB Radar/Weekly Documents/Week 3's work.md",
+    "01 - Projects/UWB Radar/Weekly Documents/Week 2's work.md",
+    "01 - Projects/UWB Radar/Weekly Documents/Week 1's work.md",
+    "01 - Projects/UWB Radar/Weekly Documents/Week 6's work.md",
+    "00 - Study/Book/Fundamentals of Statisticcal Signal Processing Estimation Theory",
+    "00 - Study/Book",
+    "06 - Daily/10-2024/2024-10-04.md",
+    "06 - Daily/10-2024/2024-10-03.md",
+    "06 - Daily/10-2024/2024-10-02.md"
+  ]
+}

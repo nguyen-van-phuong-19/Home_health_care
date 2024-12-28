@@ -1,0 +1,231 @@
+
+/*------------------------------------------------------------------------------
+                     document Note Themes by CyanVoxel v1.0.5
+
+These are a set of 7 main CSS classes that can be used to apply individual color
+schemes to document notes for each day of the week.
+To customize the colors for each day, just swamp out the colors values under
+the main "day of the week" classes.
+
+NOTE: By default, this snippet relies on the "Bai Jamjuree" or
+"JetBrainsMono Nerd Font Mono" fonts. If you don't wish to use these, then just
+change or remove those font-family lines from this snippet.
+                
+------------------------------------------------------------------------------*/
+:root {
+  --highlight: #ffffff;
+  --primary: #aaaaaa;
+  --background-h4: #698b86;
+  --dark: #333333;
+}
+
+.document {
+  --dark: var(--dark);
+  color: var(--highlight);
+  background-color: var(--dark);
+  font-family: "JetBrains Mono";
+  --text-normal: var(--highlight);
+  --text-muted: var(--highlight);
+  --text-faint: var(--highlight);
+  --checklist-done-color: var(--highlight);
+  --metadata-label-text-color: var(--highlight);
+  --metadata-input-text-color: var(--highlight);
+  --tag-color: var(--dark);
+  --tag-background: var(--primary);
+  --hr-color: var(--primary);
+  --blockquote-border-color: var(--primary);
+  --interactive-accent: var(--primary);
+  --collapse-icon-color-collapsed: var(--primary);
+  --checkbox-color: var(--primary);
+  --checkbox-marker-color: var(--dark);
+  --checkbox-color-hover: var(--highlight);
+  --checkbox-border-color: var(--highlight);
+  --list-marker-color: var(--highlight);
+  --code-background: black;
+  --code-normal: var(--primary);
+
+  --background-modifier-border-focus: var(--primary);
+  --background-modifier-border: color-mix(in srgb, var(--highlight) 60%, transparent);
+  --background-modifier-hover: color-mix(in srgb, var(--highlight) 60%, transparent);
+  --pill-cover-hover: color-mix(in srgb, var(--highlight) 60%, transparent);
+}
+
+.document :is(h1, .HyperMD-header.HyperMD-header-1) {
+  color: var(--primary);
+  text-align: center;
+  font-size: 50px;
+  font-family: "Bai Jamjuree", "JetBrainsMono Nerd Font Mono", "JetBrains Mono";
+  padding: 0 !important;
+}
+.document :is(h2, .HyperMD-header.HyperMD-header-2) {
+  color: var(--highlight);
+  /* text-align: center; */
+  font-size: 38px;
+  font-family: "Bai Jamjuree", "JetBrainsMono Nerd Font Mono", "JetBrains Mono";
+  font-style: italic;
+  padding: 0 !important;
+}
+.document :is(h3, .HyperMD-header.HyperMD-header-3) {
+  color: var(--primary);
+  /* text-align: center; */
+
+  font-size: 30px;
+  font-family: "JetBrains Mono";
+  padding-top: 0;
+}
+.document :is(h4, .HyperMD-header.HyperMD-header-4) {
+  background-color: var(--background-h4);
+  color: var(--dark);
+  /* border-color: var(--primary); */
+  font-family: "JetBrains Mono";
+  font-weight: 900;
+  margin-bottom: 0;
+  padding-top: 0;
+  font-size: 20px;
+  width: fit-content;
+  padding-left: 6px;
+  padding-right: 6px;
+  /* border: solid; */
+  border-radius: 8px;
+  /* border-width: 2px; */
+  word-wrap: normal;
+}
+.document p {
+  margin-top: 4px;
+  margin-bottom: 4px;
+}
+.document :is(a:link, .cm-hmd-internal-link) {
+  color: var(--primary);
+}
+.document :is(a:hover, .cm-hmd-internal-link:hover) {
+  color: var(--highlight);
+}
+.document hr {
+  margin-top: 20px !important;
+  margin-bottom: 20px !important;
+}
+
+.document img {
+  display: block !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+:is(.sunday, .Sunday,
+.monday, .Monday,
+.tuesday, .Tuesday,
+.wednesday, .Wednesday,
+.thursday, .Thursday,
+.friday, .Friday,
+.saturday, .Saturday
+  )
+  svg {
+  color: color-mix(in srgb, var(--highlight) 60%, transparent);
+}
+
+
+
+.document-2 {
+  --dark: var(--dark);
+  color: var(--highlight);
+  background-color: var(--dark);
+  font-family: "JetBrains Mono";
+  --text-normal: var(--highlight);
+  --text-muted: var(--highlight);
+  --text-faint: var(--highlight);
+  --checklist-done-color: var(--highlight);
+  --metadata-label-text-color: var(--highlight);
+  --metadata-input-text-color: var(--highlight);
+  --tag-color: var(--dark);
+  --tag-background: var(--primary);
+  --hr-color: var(--primary);
+  --blockquote-border-color: var(--primary);
+  --interactive-accent: var(--primary);
+  --collapse-icon-color-collapsed: var(--primary);
+  --checkbox-color: var(--primary);
+  --checkbox-marker-color: var(--dark);
+  --checkbox-color-hover: var(--highlight);
+  --checkbox-border-color: var(--highlight);
+  --list-marker-color: var(--highlight);
+  --code-background: black;
+  --code-normal: var(--primary);
+
+  --background-modifier-border-focus: var(--primary);
+  --background-modifier-border: color-mix(in srgb, var(--highlight) 60%, transparent);
+  --background-modifier-hover: color-mix(in srgb, var(--highlight) 60%, transparent);
+  --pill-cover-hover: color-mix(in srgb, var(--highlight) 60%, transparent);
+}
+
+
+
+.document-2 :is(h1, .HyperMD-header.HyperMD-header-1) {
+/*  color: var(--primary);*/
+  text-align: center;
+  font-size: 50px;
+  font-family: "Bai Jamjuree", "JetBrainsMono Nerd Font Mono", "JetBrains Mono";
+  padding: 0 !important;
+}
+.document-2 :is(h2, .HyperMD-header.HyperMD-header-2) {
+/*  color: var(--highlight);*/
+  /* text-align: center; */
+  font-size: 38px;
+  font-family: "Bai Jamjuree", "JetBrainsMono Nerd Font Mono", "JetBrains Mono";
+  font-style: italic;
+  padding: 0 !important;
+}
+.document-2 :is(h3, .HyperMD-header.HyperMD-header-3) {
+/*  color: var(--primary);*/
+  /* text-align: center; */
+  font-size: 30px;
+  font-family: "JetBrains Mono";
+  padding-top: 0;
+}
+.document-2 :is(h4, .HyperMD-header.HyperMD-header-4) {
+ background-color: var(--background-h4);
+/*  color: var(--dark);*/
+  /* border-color: var(--primary); */
+  font-family: "JetBrains Mono";
+  font-weight: 900;
+  margin-bottom: 0;
+  padding-top: 0;
+  font-size: 20px;
+  width: fit-content;
+  padding-left: 6px;
+  padding-right: 6px;
+  /* border: solid; */
+  border-radius: 8px;
+  /* border-width: 2px; */
+  word-wrap: normal;
+}
+.document-2 p {
+  margin-top: 4px;
+  margin-bottom: 4px;
+}
+.document-2 :is(a:link, .cm-hmd-internal-link) {
+  color: var(--primary);
+}
+.document-2 :is(a:hover, .cm-hmd-internal-link:hover) {
+  color: var(--highlight);
+}
+.document-2 hr {
+  margin-top: 20px !important;
+  margin-bottom: 20px !important;
+}
+
+.document-2 img {
+  display: block !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+:is(.sunday, .Sunday,
+.monday, .Monday,
+.tuesday, .Tuesday,
+.wednesday, .Wednesday,
+.thursday, .Thursday,
+.friday, .Friday,
+.saturday, .Saturday
+  )
+  svg {
+  color: color-mix(in srgb, var(--highlight) 60%, transparent);
+}

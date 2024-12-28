@@ -1,0 +1,23 @@
+{
+  "accentColor": "#423857",
+  "cssTheme": "Things",
+  "interfaceFontFamily": "JetBrains Mono",
+  "textFontFamily": "JetBrains Mono",
+  "monospaceFontFamily": "JetBrains Mono",
+  "enabledCssSnippets": [
+    "retro-notebook-bg",
+    "Daily Note",
+    "Japanese Fonts",
+    "Japanese Font Support",
+    "Minecraft",
+    "CyanVoxel's General Tweaks",
+    "Daily Note Themes",
+    "Notebook Backgrounds",
+    "Runescape",
+    "Colored Sidebar Items",
+    "Document themes"
+  ],
+  "translucency": false,
+  "theme": "obsidian",
+  "baseFontSize": 17
+}
