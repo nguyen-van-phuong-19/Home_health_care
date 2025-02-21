@@ -1,0 +1,101 @@
+EESchema-LIBRARY Version 2.3
+#encoding utf-8
+#SamacSys ECAD Model NE555DR
+#/6648/2/2.37/8/4/Integrated Circuit
+DEF NE555DR IC 0 30 Y Y 1 F N
+F0 "IC" 1050 600 50 H V L CNN
+F1 "NE555DR" 1050 500 50 H V L CNN
+F2 "SOIC127P600X175-8N" 1050 400 50 H I L CNN
+F3 "http://www.ti.com/lit/ds/symlink/ne555.pdf" 1050 300 50 H I L CNN
+F4 "Single Precision Timer" 1050 200 50 H I L CNN "Description"
+F5 "1.75" 1050 100 50 H I L CNN "Height"
+F6 "Texas Instruments" 1050 0 50 H I L CNN "Manufacturer_Name"
+F7 "NE555DR" 1050 -100 50 H I L CNN "Manufacturer_Part_Number"
+F8 "595-NE555DR" 1050 -200 50 H I L CNN "Mouser Part Number"
+F9 "https://www.mouser.com/Search/Refine.aspx?Keyword=595-NE555DR" 1050 -300 50 H I L CNN "Mouser Price/Stock"
+F10 "1218414" 1050 -400 50 H I L CNN "RS Part Number"
+F11 "http//uk.rs-online.com/web/p/products/1218414" 1050 -500 50 H I L CNN "RS Price/Stock"
+DRAW
+X GND 1 600 -1000 200 U 50 50 0 0 B
+X TRIG 2 0 -400 200 R 50 50 0 0 B
+X OUT 3 1200 -200 200 L 50 50 0 0 B
+X ~RESET 4 0 0 200 R 50 50 0 0 B
+X CONT 5 500 600 200 D 50 50 0 0 B
+X THRES 6 0 -300 200 R 50 50 0 0 B
+X DISCH 7 0 -100 200 R 50 50 0 0 B
+X VCC 8 700 600 200 D 50 50 0 0 B
+P 5 0 1 6 200 400 1000 400 1000 -800 200 -800 200 400 N
+ENDDRAW
+ENDDEF
+#
+#SamacSys ECAD Model TESEO-LIV3R
+#/2208700/1601859/2.50/18/3/Integrated Circuit
+DEF TESEO-LIV3R IC 0 30 Y Y 1 F N
+F0 "IC" 1450 300 50 H V L CNN
+F1 "TESEO-LIV3R" 1450 200 50 H V L CNN
+F2 "TESEOLIV3R" 1450 100 50 H I L CNN
+F3 "https://www.st.com/resource/en/datasheet/teseo-liv3r.pdf" 1450 0 50 H I L CNN
+F4 "- RF Receiver BeiDou, GLONASS, GNSS, GPS 1.561GHz, 1.575MHz -163dBm Not Included 18-LCC (9.7x10.1)" 1450 -100 50 H I L CNN "Description"
+F5 "2.3" 1450 -200 50 H I L CNN "Height"
+F6 "STMicroelectronics" 1450 -300 50 H I L CNN "Manufacturer_Name"
+F7 "TESEO-LIV3R" 1450 -400 50 H I L CNN "Manufacturer_Part_Number"
+F8 "511-TESEO-LIV3R" 1450 -500 50 H I L CNN "Mouser Part Number"
+F9 "https://www.mouser.co.uk/ProductDetail/STMicroelectronics/TESEO-LIV3R?qs=ZSypp649SOXG7EmhCFcBlw%3D%3D" 1450 -600 50 H I L CNN "Mouser Price/Stock"
+F10 "TESEO-LIV3R" 1450 -700 50 H I L CNN "Arrow Part Number"
+F11 "https://www.arrow.com/en/products/teseo-liv3r/stmicroelectronics?region=nac" 1450 -800 50 H I L CNN "Arrow Price/Stock"
+DRAW
+X GND 1 1600 -800 200 L 50 50 0 0 P
+X TX 2 1600 -700 200 L 50 50 0 0 P
+X RX 3 1600 -600 200 L 50 50 0 0 P
+X 1PPS 4 1600 -500 200 L 50 50 0 0 P
+X _WAKE-UP 5 1600 -400 200 L 50 50 0 0 P
+X VBATT 6 1600 -300 200 L 50 50 0 0 P
+X VCC_IO 7 1600 -200 200 L 50 50 0 0 P
+X VCC 8 1600 -100 200 L 50 50 0 0 P
+X SYS_RSTN 9 1600 0 200 L 50 50 0 0 P
+X _GND_RF 10 0 0 200 R 50 50 0 0 P
+X _RF_IN 11 0 -100 200 R 50 50 0 0 P
+X GND_RF 12 0 -200 200 R 50 50 0 0 P
+X _ANT_OFF 13 0 -300 200 R 50 50 0 0 P
+X VCC_RF 14 0 -400 200 R 50 50 0 0 P
+X RESERVED_1 15 0 -500 200 R 50 50 0 0 P
+X SDA 16 0 -600 200 R 50 50 0 0 P
+X SCL 17 0 -700 200 R 50 50 0 0 P
+X RESERVED_2 18 0 -800 200 R 50 50 0 0 P
+P 5 0 1 6 200 100 1400 100 1400 -900 200 -900 200 100 N
+ENDDRAW
+ENDDEF
+#
+#SamacSys ECAD Model MAX30102EFD+T
+#/643239/1601859/2.50/14/3/Integrated Circuit
+DEF MAX30102EFD+T IC 0 30 Y Y 1 F N
+F0 "IC" 1250 300 50 H V L CNN
+F1 "MAX30102EFD+T" 1250 200 50 H V L CNN
+F2 "MAX30102EFDT" 1250 100 50 H I L CNN
+F3 "https://www.analog.com/media/en/technical-documentation/data-sheets/MAX30102.pdf" 1250 0 50 H I L CNN
+F4 "Biometric Sensors Integrated Optical Sensor" 1250 -100 50 H I L CNN "Description"
+F5 "1.65" 1250 -200 50 H I L CNN "Height"
+F6 "700-MAX30102EFD+T" 1250 -300 50 H I L CNN "Mouser Part Number"
+F7 "https://www.mouser.co.uk/ProductDetail/Analog-Devices-Maxim-Integrated/MAX30102EFD%2bT?qs=nVS1qgv%252BQrkHA4%2FoFYriFA%3D%3D" 1250 -400 50 H I L CNN "Mouser Price/Stock"
+F8 "Analog Devices" 1250 -500 50 H I L CNN "Manufacturer_Name"
+F9 "MAX30102EFD+T" 1250 -600 50 H I L CNN "Manufacturer_Part_Number"
+DRAW
+X N.C._1 1 0 0 200 R 50 50 0 0 P
+X SCL 2 0 -100 200 R 50 50 0 0 P
+X SDA 3 0 -200 200 R 50 50 0 0 P
+X PGND 4 0 -300 200 R 50 50 0 0 P
+X N.C._2 5 0 -400 200 R 50 50 0 0 P
+X N.C._3 6 0 -500 200 R 50 50 0 0 P
+X N.C._4 7 0 -600 200 R 50 50 0 0 P
+X N.C._5 8 1400 -600 200 L 50 50 0 0 P
+X VLED+_1 9 1400 -500 200 L 50 50 0 0 P
+X VLED+_2 10 1400 -400 200 L 50 50 0 0 P
+X VDD 11 1400 -300 200 L 50 50 0 0 P
+X GND 12 1400 -200 200 L 50 50 0 0 P
+X ~INT 13 1400 -100 200 L 50 50 0 0 P
+X N.C._6 14 1400 0 200 L 50 50 0 0 P
+P 5 0 1 6 200 100 1200 100 1200 -700 200 -700 200 100 N
+ENDDRAW
+ENDDEF
+#
+#End Library
