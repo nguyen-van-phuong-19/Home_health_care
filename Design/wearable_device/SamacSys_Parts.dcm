@@ -1,0 +1,21 @@
+EESchema-DOCLIB  Version 2.0
+#
+$CMP NE555DR
+D Single Precision Timer
+K
+F http://www.ti.com/lit/ds/symlink/ne555.pdf
+$ENDCMP
+#
+$CMP TESEO-LIV3R
+D - RF Receiver BeiDou, GLONASS, GNSS, GPS 1.561GHz, 1.575MHz -163dBm Not Included 18-LCC (9.7x10.1)
+K
+F https://www.st.com/resource/en/datasheet/teseo-liv3r.pdf
+$ENDCMP
+#
+$CMP MAX30102EFD+T
+D Biometric Sensors Integrated Optical Sensor
+K
+F https://www.analog.com/media/en/technical-documentation/data-sheets/MAX30102.pdf
+$ENDCMP
+#
+#End Doc Library
