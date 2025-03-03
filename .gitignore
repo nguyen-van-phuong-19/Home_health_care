@@ -1,0 +1,5 @@
+*build/
+*Drivers/
+*metadata/
+*settings/
+*stm32_board/
