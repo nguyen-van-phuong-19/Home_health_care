@@ -1,0 +1,2 @@
+/home/phuong-nguyen/Documents/Graduation_Project/Home_health_care/Software/flutter_application/android/app/.cxx/Debug/6m4j5jz1/x86_64/CMakeFiles/edit_cache.dir
+/home/phuong-nguyen/Documents/Graduation_Project/Home_health_care/Software/flutter_application/android/app/.cxx/Debug/6m4j5jz1/x86_64/CMakeFiles/rebuild_cache.dir
