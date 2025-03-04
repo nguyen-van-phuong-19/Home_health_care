@@ -1,6 +1,6 @@
 *build/
 # *Drivers/
 *metadata/
-*settings/
+# *settings/
 *node_modules/
 *eslintcache
