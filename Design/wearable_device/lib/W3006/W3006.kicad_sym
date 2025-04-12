@@ -1,0 +1,59 @@
+
+(kicad_symbol_lib (version 20211014) (generator kicad_symbol_editor)
+  (symbol "W3006" (pin_names (offset 1.016)) (in_bom yes) (on_board yes)
+    (property "Reference" "AE" (id 0) (at -5.08578 3.05147 0)
+      (effects (font (size 1.27 1.27)) (justify bottom left))
+    )
+    (property "Value" "W3006" (id 1) (at -5.08548 -5.08548 0)
+      (effects (font (size 1.27 1.27)) (justify bottom left))
+    )
+    (property "Footprint" "W3006:XDCR_W3006" (id 2) (at 0 0 0)
+      (effects (font (size 1.27 1.27)) (justify bottom) hide)
+    )
+    (property "MANUFACTURER" "Pulse Electronics" (id 4) (at 0 0 0)
+      (effects (font (size 1.27 1.27)) (justify bottom) hide)
+    )
+    (symbol "W3006_0_0"
+      (polyline
+        (pts (xy 5.08 0.0) (xy 7.62 0.0)) (stroke (width 0.254))
+      )
+      (polyline
+        (pts (xy -5.08 0.0) (xy -7.62 0.0)) (stroke (width 0.254))
+      )
+      (polyline
+        (pts (xy -3.175 1.905) (xy -3.175 0.0)) (stroke (width 0.254))
+      )
+      (polyline
+        (pts (xy -3.175 0.0) (xy -3.175 -1.905)) (stroke (width 0.254))
+      )
+      (polyline
+        (pts (xy -3.175 -1.905) (xy -0.635 0.0)) (stroke (width 0.254))
+      )
+      (polyline
+        (pts (xy -0.635 0.0) (xy -3.175 1.905)) (stroke (width 0.254))
+      )
+      (polyline
+        (pts (xy -3.175 0.0) (xy 5.08 0.0)) (stroke (width 0.254))
+      )
+      (rectangle (start -5.08 -2.54) (end 5.08 2.54)
+        (stroke (width 0.254)) (fill (type background))
+      )
+      (pin passive line (at -10.16 0.0 0) (length 5.08)
+        (name "1"
+          (effects (font (size 1.016 1.016)))
+        )
+        (number "1"
+          (effects (font (size 1.016 1.016)))
+        )
+      )
+      (pin passive line (at 10.16 0.0 180.0) (length 5.08)
+        (name "2"
+          (effects (font (size 1.016 1.016)))
+        )
+        (number "2"
+          (effects (font (size 1.016 1.016)))
+        )
+      )
+    )
+  )
+)

@@ -1,4 +1,11 @@
-23338045519271295
+23351984329783663
+ANT016008LCD1575MA1
+XCVR_ANT016008LCD1575MA1
+
+
+0
+4
+4
 Audio_Module
 Reverb_BTDR-1H
 Digital Reverberation Unit, http://www.belton.co.kr/inc/downfile.php?seq=17&file=pdf (footprint from http://www.uk-electronic.de/PDF/BTDR-1.pdf)
@@ -56825,6 +56832,13 @@ Fuse Fuseholder TR5 Littelfuse/Wickmann No. 460 No560
 0
 2
 2
+GGBLA_01_A
+XCVR_GGBLA.01.A
+
+
+0
+2
+2
 Heatsink
 Heatsink_35x26mm_1xFixation3mm_Fischer-SK486-35
 Heatsink, 35mm x 26mm, 1x Fixation 3mm, Fischer SK486-35
@@ -62446,6 +62460,13 @@ solder jumper open
 0
 5
 3
+L80-R
+XCVR_L80-R
+
+
+0
+12
+12
 LED_SMD
 LED-APA102-2020
 http://www.led-color.com/upload/201604/APA102-2020%20SMD%20LED.pdf
@@ -63636,6 +63657,20 @@ Yellow 5381 Series LED
 0
 2
 2
+LIS2DH12TR
+PQFN50P200X200100-12N
+
+
+0
+12
+12
+LP2985-33DBVR
+SOT95P280X145-5N
+
+
+0
+5
+5
 Module
 A20_OLINUXINO_LIME2
 A20 Olinuxino LIME2, 1.2GHz, 512-1024MB RAM, Micro-SD, NAND or eMMC, 1000Mbit Ethernet
@@ -87633,6 +87668,13 @@ rotary encoder illuminated switch vertical
 9
 8
 SamacSys_Parts
+MAX30102EFDT
+F143A5MK+1
+Integrated Circuit
+0
+14
+14
+SamacSys_Parts
 NE555DR
 D (R-PDSO-G8)
 Integrated Circuit
@@ -89298,6 +89340,13 @@ Logo WEEE
 0
 0
 0
+TP4056
+SOP127P600X175-9N
+
+
+0
+9
+9
 TerminalBlock
 TerminalBlock_Altech_AK300-2_P5.00mm
 Altech AK300 terminal block, pitch 5.0mm, 45 degree angled, see http://www.mouser.com/ds/2/16/PCBMETRC-24178.pdf
@@ -95350,6 +95399,13 @@ Varistor
 Varistor_Panasonic_VF
 Panasonic VF series varistor, 6x8mm body, 3.2mm height, https://mediap.industry.panasonic.eu/assets/imported/industrial.panasonic.com/cdbs/www-data/pdf/AWA0000/AWA0000C4.pdf
 Varistor VF
+0
+2
+2
+W3006
+XDCR_W3006
+
+
 0
 2
 2
