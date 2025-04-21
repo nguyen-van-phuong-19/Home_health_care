@@ -1,52 +1,28 @@
 import paho.mqtt.client as mqtt
+from mqtt import mqtt_server
 
-# MQTT broker settings
-BROKER = "broker.emqx.io"
-PORT = 1883
-KEEPALIVE = 60
-USERNAME = "emqx"
-PASSWORD = "public"
 
-# Callback when connecting to broker
-def on_connect(client, userdata, flags, rc):
-    """
-    Callback when connecting to broker
-    :param client: The client instance for this callback
-    :param userdata: The private user data as set in Client() or userdata_set()
-    :param flags: response flags sent by the broker
-    :param rc: the connection result
-    :return: None
-    """
-    print(f"Connected with result code {rc}")
-    # Subscribe to topics after connecting
-    client.subscribe("test/topic")
-
-# Callback when receiving message
-def on_message(client, userdata, msg):
-    """
-    Callback when receiving message
-    :param client: The client instance for this callback
-    :param userdata: The private user data as set in Client() or userdata_set()
-    :param msg: The message that was received
-    :return: None
-    """
-    print(f"Received message '{msg.payload.decode()}' on topic '{msg.topic}'")
-
-# Create MQTT client instance
-client = mqtt.Client()
-
-# Set callbacks
-client.on_connect = on_connect
-client.on_message = on_message
-
-# Set username and password
-client.username_pw_set(USERNAME, PASSWORD)
-
-# Connect to broker
-client.connect(BROKER, PORT, KEEPALIVE)
-
-# Start network loop
-client.loop_start()
-
-# Example publish
-client.publish("test/topic", "Hello EMQX!")
+if __name__ == "__main__":
+    """Main function to run the MQTT server"""
+    # Setup Firebase
+    root_ref = mqtt_server.setup_firebase()
+    
+    # Setup MQTT client
+    client = mqtt.Client()
+    client.user_data_set({"db": root_ref})
+    client.on_connect = mqtt_server.on_connect
+    client.on_message = mqtt_server.on_message
+    
+    # Connect to MQTT broker
+    # In production, use secure connection parameters
+    mqtt_broker = "broker.emqx.io"  # Replace with your MQTT broker address
+    mqtt_port = 1883
+    
+    try:
+        client.connect(mqtt_broker, mqtt_port, 60)
+        print(f"Connected to MQTT broker at {mqtt_broker}:{mqtt_port}")
+        
+        # Start the MQTT loop
+        client.loop_forever()
+    except Exception as e:
+        print(f"Error: {e}")

@@ -1,0 +1,62 @@
+{
+  "users": {
+    "{user_id}": {
+      "heart_rate": {
+        "{timestamp}": {
+          "bpm": number
+        }
+      },
+      "calories_by_heart_rate": {
+        "{date}": {
+          "bpm": number,
+          "calories_burned_hr": number
+        }
+      },
+      "spo2": {
+        "{timestamp}": {
+          "percentage": number
+        }
+      },
+      "latest_spo2": {
+        "percentage": number
+      },
+      "calorise_by_accelerometer": {
+        "{date}": {
+          "total_calories": number
+        }
+      },
+      "gps": {
+        "{timestamp}": {
+          "latitude": number,
+          "longitude": number,
+          "altitude": number
+        }
+      },
+      "latest_location": {
+        "latitude": number,
+        "longitude": number,
+        "altitude": number,
+        "timestamp": string
+      },
+      "sleep": {
+        "{start_time}_to_{end_time}": {
+          "start_time": string,
+          "end_time": string,
+          "duration_hours": number
+        }
+      },
+      "daily_sleep": {
+        "{date}": {
+          "sleep_duration": number
+        }
+      },
+      "calories_daily": {
+        "{date}": {
+          "combined_daily_calories": number,
+          "heart_rate_calories": number,
+          "accelerometer_calories": number
+        }
+      }
+    }
+  }
+}
