@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "672419730697",
+    "firebase_url": "https://sleep-system-7d563-default-rtdb.asia-southeast1.firebasedatabase.app",
+    "project_id": "sleep-system-7d563",
+    "storage_bucket": "sleep-system-7d563.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:672419730697:android:fd68fd856fd8a17200afd8",
+        "android_client_info": {
+          "package_name": "com.example.wearable_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC_3-daB5E16hiYrdlJAFITMoVvYg0cEoc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
