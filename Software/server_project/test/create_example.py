@@ -37,28 +37,12 @@ def generate_sample_data(user_id: str, days: int = 10):
                 'percentage': round(random.uniform(90, 100), 1)
             })
 
-            # gps
-            lat = round(random.uniform(-90, 90), 6)
-            lng = round(random.uniform(-180, 180), 6)
-            alt = round(random.uniform(0, 1000), 2)
-            ref.child('gps').child(ts).set({
-                'latitude': lat,
-                'longitude': lng,
-                'altitude': alt
-            })
-
         # latest_spo2 & latest_location
         ref.child('latest_spo2').set({
             'percentage': round(random.uniform(90, 100), 1)
         })
         ref.child('latest_heart_rate').set({
             'bpm': round(random.uniform(90, 100), 1)
-        })
-        ref.child('latest_location').set({
-            'latitude': lat,
-            'longitude': lng,
-            'altitude': alt,
-            'timestamp': ts
         })
 
         # calories_by_heart_rate (theo ngày)
