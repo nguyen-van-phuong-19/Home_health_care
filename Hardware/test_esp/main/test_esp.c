@@ -5,6 +5,8 @@
 #define LIS2DH12_TASK_PRIORITY      5
 #define MAX30102_TASK_PRIORITY      5
 
+static const char *TAG = "APP_MAIN";
+
 // Shared I2C mutex to protect bus on SDA/SCL
 static SemaphoreHandle_t i2c_mutex = NULL;
 
@@ -12,14 +14,23 @@ static StaticTask_t lis2dh12_tcb;
 static StackType_t  lis2dh12_stack[LIS2DH12_TASK_STACK_SIZE];
 static StaticTask_t max30102_tcb;
 static StackType_t  max30102_stack[MAX30102_TASK_STACK_SIZE];
+// cấu hình stack/TCB để tạo task tĩnh
+#define WIFI_WD_STACK_SIZE 4096
+static StaticTask_t   wifiWdTCB;
+static StackType_t    wifiWdStack[WIFI_WD_STACK_SIZE];
+
+static SemaphoreHandle_t mqtt_mutex = NULL;
 
 static void lis2dh12_task(void *arg);
 static void max30102_task(void *arg);
+static void wifi_watchdog_task(void *arg);
 
 static uint32_t red_block[BLOCK_SIZE];
 static uint32_t ir_block[BLOCK_SIZE];
 static int block_index = 0;
+static int convolved_index = 0;
 static float convolved_signal[CONVOLVED_SIZE];
+static float vector_sum = 0.0f;
 
 void app_main(void)
 {
@@ -31,6 +42,7 @@ void app_main(void)
 
     // Create I2C mutex (with priority inheritance)
     i2c_mutex = xSemaphoreCreateMutex();
+    mqtt_mutex = xSemaphoreCreateMutex();
     configASSERT(i2c_mutex);
 
     xTaskCreateStatic(
@@ -53,23 +65,60 @@ void app_main(void)
         &max30102_tcb
     );
 
+    xTaskCreateStatic(
+        wifi_watchdog_task,         // entry fn
+        "wifi_watchdog",            // name
+        WIFI_WD_STACK_SIZE,         // stack depth (words)
+        NULL,                       // param
+        tskIDLE_PRIORITY + 1,       // priority
+        wifiWdStack,                // stack buffer
+        &wifiWdTCB                  // TCB buffer
+    );
+
 }
 
 
 static void lis2dh12_task(void *arg)
 {
+    EventGroupHandle_t eg = wifi_event_group;
     lis2dh12_vector_t acc;
     for(;;) {
         if(xSemaphoreTake(i2c_mutex, portMAX_DELAY) == pdTRUE) {
             if (lis2dh12_get_vector(&acc) == ESP_OK) {
-                printf("Accel [m/s^2]: X=%7.3f  Y=%7.3f  Z=%7.3f\n",
-                    acc.x, acc.y, acc.z);
+                vector_sum = vector_sum + sqrtf(acc.x * acc.x + acc.y * acc.y + acc.z * acc.z);
+                convolved_index++;
+                // printf("Accel [m/s^2]: X=%7.3f  Y=%7.3f  Z=%7.3f\n",
+                //     acc.x, acc.y, acc.z);
+                if(convolved_index >= 60 * 100){
+                    EventBits_t bits = xEventGroupGetBits(eg);
+                    if((bits & WIFI_CONNECTED_BIT) == 0) {
+
+                    }else {
+                        xEventGroupWaitBits(
+                            mqtt_event_group,
+                            MQTT_CONNECTED_BIT,
+                            pdTRUE,
+                            pdFALSE,
+                            portMAX_DELAY
+                        );
+                        if(xSemaphoreTake(mqtt_mutex, portMAX_DELAY) == pdTRUE) {
+                            mqtt_publish_accelerometer(
+                                "user_id",
+                                vector_sum,
+                                75.0f,
+                                1
+                            );
+                            xSemaphoreGive(mqtt_mutex);
+                        }
+                    }
+                    convolved_index = 0;
+                }
             } else {
                 ESP_LOGE("MAIN", "LIS2DH12TR read failed");
             }
             xSemaphoreGive(i2c_mutex);
         }
-        vTaskDelay(pdMS_TO_TICKS(100));  // 10 Hz
+        vTaskDelay(pdMS_TO_TICKS(10));  // 100 Hz
     }
 }
 
@@ -81,6 +130,7 @@ static void max30102_task(void *arg)
     float duration_sec = 0.0f;
     uint32_t hr = 0;
     float spo2_avg = 0.0f;
+    EventGroupHandle_t eg = wifi_event_group;
 
     for(;;) {
         if(xSemaphoreTake(i2c_mutex, portMAX_DELAY) == pdTRUE) {
@@ -102,7 +152,32 @@ static void max30102_task(void *arg)
                     
                     ESP_LOGI("RESULT", "Block (10s) -> HR: %d bpm, SpO2: %.1f%%, Beats: %d",
                                 (int)hr, spo2_avg, beats);
-                    
+                    EventBits_t bits = xEventGroupGetBits(eg);
+                    if((bits & WIFI_CONNECTED_BIT) == 0) {
+
+                    }else {
+                        xEventGroupWaitBits(
+                            mqtt_event_group,
+                            MQTT_CONNECTED_BIT,
+                            pdTRUE,
+                            pdFALSE,
+                            portMAX_DELAY
+                        );
+                        if(xSemaphoreTake(mqtt_mutex, portMAX_DELAY) == pdTRUE) {
+                            mqtt_publish_heart_rate(
+                                "user_id",
+                                (int)hr,
+                                75.0f,
+                                23,
+                                1
+                            );
+                            mqtt_publish_spo2(
+                                "user_id",
+                                spo2_avg
+                            );
+                            xSemaphoreGive(mqtt_mutex);
+                        }
+                    }
                     // Reset index để block mới
                     block_index = 0;
                     for(int i = 0; i < BLOCK_SIZE; i++) {
@@ -122,4 +197,59 @@ static void max30102_task(void *arg)
         vTaskDelay(pdMS_TO_TICKS(SAMPLE_INTERVAL_MS));  // 1 Hz
     }
 
+}
+
+
+static void wifi_watchdog_task(void *arg)
+{
+    EventGroupHandle_t eg = wifi_event_group;
+    bool wifi_was_up   = true;
+    bool ble_started   = false;
+
+    for (;;) {
+        EventBits_t bits = xEventGroupGetBits(eg);
+
+        if ((bits & WIFI_CONNECTED_BIT) == 0) {
+            // —— Wi-Fi DOWN ——
+            if (wifi_was_up) {
+                // lần đầu phát hiện rớt, dọn dẹp MQTT + khởi BLE
+                ESP_LOGW(TAG, "WiFi lost: deinit MQTT, init BLE");
+                if (mqtt_deinit() == ESP_OK) {
+                    ESP_LOGI(TAG, "mqtt_deinit OK");
+                }
+                if (ble_init() == ESP_OK) {
+                    ESP_LOGI(TAG, "ble_init OK");
+                    ble_started = true;
+                }
+                wifi_was_up   = false;
+            }
+
+            // thử reconnect Wi-Fi
+            ESP_LOGI(TAG, "Watchdog: esp_wifi_connect()");
+            esp_err_t err = esp_wifi_connect();
+            if (err != ESP_OK) {
+                ESP_LOGE(TAG, "esp_wifi_connect() failed: %d", err);
+            }
+
+        } else {
+            // —— Wi-Fi UP ——
+            if (!wifi_was_up) {
+                // lần đầu phát hiện lên lại, dọn BLE + khởi MQTT
+                ESP_LOGI(TAG, "WiFi reconnected: deinit BLE, init MQTT");
+                if (ble_started && ble_deinit() == ESP_OK) {
+                    ESP_LOGI(TAG, "ble_deinit OK");
+                }
+                // Giả sử bạn muốn tự động tái-khởi MQTT:
+                if (mqtt_init("mqtt://broker", "client_id", NULL) == ESP_OK) {
+                    ESP_LOGI(TAG, "mqtt_init OK");
+                }
+                // reset flags
+                ble_started  = false;
+                wifi_was_up   = true;
+            }
+        }
+
+        // đợi 60s rồi lặp lại
+        vTaskDelay(pdMS_TO_TICKS(60000));
+    }
 }

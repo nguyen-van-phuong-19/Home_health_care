@@ -3,7 +3,7 @@
 static const char *TAG = "wifi_pr";
 
 // Event group to signal when connected
-static EventGroupHandle_t wifi_event_group;
+EventGroupHandle_t wifi_event_group;
 
 
 static int wifi_retry_count;
@@ -97,5 +97,5 @@ void wifi_stop(void)
 void on_wifi_fail(void)
 {
     ESP_LOGE(TAG, "Connection failed, invoking error handler: stopping WiFi");
-    wifi_stop();
+    // wifi_stop();
 }

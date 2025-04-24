@@ -14,6 +14,9 @@ extern "C" {
 #include "freertos/task.h"
 #include "driver/i2c.h"
 #include "esp_log.h"
+#include "wifi_pr.h"
+#include "mqtt_cl.h"
+#include "ble_fc.h"
 #include "LIS2DH12TR.h"
 
 // I2C configuration cho ESP32-S3-N16R8 (sử dụng chân phù hợp với board của bạn)

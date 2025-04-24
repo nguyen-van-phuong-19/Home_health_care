@@ -24,11 +24,6 @@ extern "C" {
 
 
 
-static int gatt_access_cb(uint16_t conn_handle, uint16_t attr_handle,
-                          struct ble_gatt_access_ctxt *ctxt, void *arg);
-static void ble_app_on_sync(void);
-static void ble_app_gatt_event(struct ble_gatt_register_ctxt *ctxt, void *arg);
-static void ble_host_task(void *param);
 esp_err_t ble_init(void);
 esp_err_t ble_deinit(void);
 esp_err_t ble_send_notification(uint16_t conn_handle,

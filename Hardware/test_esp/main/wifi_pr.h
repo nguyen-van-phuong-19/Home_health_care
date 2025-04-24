@@ -17,6 +17,7 @@ extern "C" {
 
 
 
+extern EventGroupHandle_t wifi_event_group;
 #define WIFI_CONNECTED_BIT BIT0
 #define WIFI_MAX_RETRY     5
 
