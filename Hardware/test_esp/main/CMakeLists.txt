@@ -1,4 +1,18 @@
 idf_component_register(SRCS "test_esp.c"
                     "main.c"
                     "LIS2DH12TR.c"
-                    INCLUDE_DIRS ".")
+                    "wifi_pr.c"
+                    "ble_fc.c"
+                    "mqtt_cl.c"
+                    INCLUDE_DIRS "."
+                    REQUIRES bt                  # <— pull in esp_bt_main.h and friends
+                        driver
+                        esp_wifi
+                        esp_netif
+                        esp_event
+                        nvs_flash
+                        esp_system    # for system APIs
+                        freertos      # for FreeRTOS headers
+                        log           # for esp_log.h
+                        mqtt
+                    )
