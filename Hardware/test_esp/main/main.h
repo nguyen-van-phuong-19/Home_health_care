@@ -19,6 +19,7 @@ extern "C" {
 #include "ble_fc.h"
 #include "LIS2DH12TR.h"
 
+
 // I2C configuration cho ESP32-S3-N16R8 (sử dụng chân phù hợp với board của bạn)
 #define I2C_MASTER_SDA_IO           6
 #define I2C_MASTER_SCL_IO           7

@@ -32,6 +32,47 @@ static int convolved_index = 0;
 static float convolved_signal[CONVOLVED_SIZE];
 static float vector_sum = 0.0f;
 
+static bool ble_is_connected = false;
+
+static uint16_t conn_handle = 0xffff;  // sẽ được set khi có kết nối
+
+// GAP event callback: lưu handle khi có kết nối / ngắt kết nối
+static int
+app_gap_event(struct ble_gap_event *event, void *arg)
+{
+    switch (event->type) {
+    case BLE_GAP_EVENT_CONNECT:
+        ble_is_connected = (event->connect.status == 0);
+        if (event->connect.status == 0) {
+            conn_handle = event->connect.conn_handle;
+            ESP_LOGI("BLE_APP", "Connected, handle=%d", conn_handle);
+        } else {
+            ESP_LOGW("BLE_APP", "Connection failed; restarting adv");
+            ble_gap_adv_start(BLE_OWN_ADDR_PUBLIC, NULL, BLE_HS_FOREVER,
+                              NULL, NULL, NULL);
+        }
+        break;
+
+    case BLE_GAP_EVENT_DISCONNECT:
+        ESP_LOGI("BLE_APP", "Disconnected, reason=%d", event->disconnect.reason);
+        ble_is_connected = false;
+        conn_handle = 0xffff;
+        // restart advertising
+        ble_gap_adv_start(BLE_OWN_ADDR_PUBLIC, NULL, BLE_HS_FOREVER,
+                          NULL, NULL, NULL);
+        break;
+
+    default:
+        break;
+    }
+    return 0;
+}
+
+bool ble_connected(void) {
+    return ble_is_connected;
+}
+
+
 void app_main(void)
 {
     // 2) Khởi tạo LIS2DH12TR
@@ -44,6 +85,27 @@ void app_main(void)
     i2c_mutex = xSemaphoreCreateMutex();
     mqtt_mutex = xSemaphoreCreateMutex();
     configASSERT(i2c_mutex);
+
+
+    ble_init();
+
+    // Khởi động advertising và chỉ định callback xử lý sự kiện GAP
+    static const struct ble_gap_adv_params adv_params = {
+        .conn_mode = BLE_GAP_CONN_MODE_UND,
+        .disc_mode = BLE_GAP_DISC_MODE_GEN,
+    };
+    int rc = ble_gap_adv_start(
+        BLE_OWN_ADDR_PUBLIC,
+        NULL,                 // không dùng dữ liệu scan response
+        BLE_HS_FOREVER,       // thời gian quảng bá vô hạn
+        &adv_params,
+        app_gap_event,        // callback khi có connect/disconnect
+        NULL                  // arg cho callback (nếu cần)
+    );
+    if (rc != 0) {
+        ESP_LOGE("APP_MAIN", "ble_gap_adv_start failed; rc=%d", rc);
+    }
+
 
     xTaskCreateStatic(
         lis2dh12_task,      // hàm task
@@ -82,6 +144,7 @@ static void lis2dh12_task(void *arg)
 {
     EventGroupHandle_t eg = wifi_event_group;
     lis2dh12_vector_t acc;
+    char payload[256];
     for(;;) {
         if(xSemaphoreTake(i2c_mutex, portMAX_DELAY) == pdTRUE) {
             if (lis2dh12_get_vector(&acc) == ESP_OK) {
@@ -92,7 +155,12 @@ static void lis2dh12_task(void *arg)
                 if(convolved_index >= 60 * 100){
                     EventBits_t bits = xEventGroupGetBits(eg);
                     if((bits & WIFI_CONNECTED_BIT) == 0) {
-
+                        if (ble_connected()) {
+                            int len = snprintf(payload, sizeof(payload),
+                                "{\"user_id\":\"user123\",\"total_vector\":%.2f}",
+                                vector_sum);
+                            ble_send_notification(conn_handle, payload, len);
+                        }
                     }else {
                         xEventGroupWaitBits(
                             mqtt_event_group,
@@ -103,7 +171,7 @@ static void lis2dh12_task(void *arg)
                         );
                         if(xSemaphoreTake(mqtt_mutex, portMAX_DELAY) == pdTRUE) {
                             mqtt_publish_accelerometer(
-                                "user_id",
+                                "user123",
                                 vector_sum,
                                 75.0f,
                                 1
@@ -131,6 +199,7 @@ static void max30102_task(void *arg)
     uint32_t hr = 0;
     float spo2_avg = 0.0f;
     EventGroupHandle_t eg = wifi_event_group;
+    char payload[256];
 
     for(;;) {
         if(xSemaphoreTake(i2c_mutex, portMAX_DELAY) == pdTRUE) {
@@ -150,11 +219,20 @@ static void max30102_task(void *arg)
                     
                     spo2_avg = compute_spo2_block(red_block, ir_block, BLOCK_SIZE);
                     
-                    ESP_LOGI("RESULT", "Block (10s) -> HR: %d bpm, SpO2: %.1f%%, Beats: %d",
-                                (int)hr, spo2_avg, beats);
+                    // ESP_LOGI("RESULT", "Block (10s) -> HR: %d bpm, SpO2: %.1f%%, Beats: %d",
+                    //             (int)hr, spo2_avg, beats);
                     EventBits_t bits = xEventGroupGetBits(eg);
                     if((bits & WIFI_CONNECTED_BIT) == 0) {
-
+                        if (ble_connected()) {
+                            int len = snprintf(payload, sizeof(payload),
+                                "{\"user_id\":\"user123\",\"bpm\":%d,}",
+                                (int)hr);
+                            ble_send_notification(conn_handle, payload, len);
+                            len = snprintf(payload, sizeof(payload),
+                                "{\"user_id\":\"user123\",\"percentage\":%.1f,}",
+                                spo2_avg);
+                            ble_send_notification(conn_handle, payload, len);
+                        }
                     }else {
                         xEventGroupWaitBits(
                             mqtt_event_group,
@@ -165,14 +243,14 @@ static void max30102_task(void *arg)
                         );
                         if(xSemaphoreTake(mqtt_mutex, portMAX_DELAY) == pdTRUE) {
                             mqtt_publish_heart_rate(
-                                "user_id",
+                                "user123",
                                 (int)hr,
                                 75.0f,
                                 23,
                                 1
                             );
                             mqtt_publish_spo2(
-                                "user_id",
+                                "user123",
                                 spo2_avg
                             );
                             xSemaphoreGive(mqtt_mutex);
