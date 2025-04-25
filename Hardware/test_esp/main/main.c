@@ -1,5 +1,6 @@
 #include "main.h"
 
+static const char *TAG = "APP_MAIN";
 //------------------------------------------------------------------------------
 // I2C functions (sử dụng API của ESP-IDF)
 //------------------------------------------------------------------------------
@@ -78,6 +79,18 @@ esp_err_t max30102_init(void) {
     ret = max30102_write_reg(REG_FIFO_RD_PTR, 0x00);
     if(ret != ESP_OK) return ret;
     ESP_LOGI("MAX30102", "Initialization complete");
+    // esp_err_t err = mqtt_subscribe_topic(MQTT_TOPIC_HEART_RATE, 0);
+    // if (err == ESP_OK) {
+    //     ESP_LOGI(TAG, "Subscribed to demo/pub");
+    // } else {
+    //     ESP_LOGE(TAG, "Subscribe failed (%d)", err);
+    // }
+    // err = mqtt_subscribe_topic(MQTT_TOPIC_SPO2, 0);
+    // if (err == ESP_OK) {
+    //     ESP_LOGI(TAG, "Subscribed to demo/pub");
+    // } else {
+    //     ESP_LOGE(TAG, "Subscribe failed (%d)", err);
+    // }
     return ESP_OK;
 }
 

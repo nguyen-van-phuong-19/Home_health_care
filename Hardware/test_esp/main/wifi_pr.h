@@ -14,7 +14,7 @@ extern "C" {
 #include "esp_log.h"
 #include "nvs_flash.h"
 #include "esp_wifi.h"
-
+#include "mqtt_cl.h"
 
 
 extern EventGroupHandle_t wifi_event_group;

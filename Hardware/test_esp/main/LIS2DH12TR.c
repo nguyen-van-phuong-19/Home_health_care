@@ -47,6 +47,12 @@ esp_err_t lis2dh12_init(void) {
     ret = lis2dh12_write_reg(REG_CTRL4, 0x08);
     if (ret != ESP_OK) return ret;
     ESP_LOGI(TAG, "Initialized: ODR=100Hz, High-res, ±2g");
+    // esp_err_t err = mqtt_subscribe_topic(MQTT_TOPIC_ACCELEROMETER, 0);
+    // if (err == ESP_OK) {
+    //     ESP_LOGI(TAG, "Subscribed to demo/pub");
+    // } else {
+    //     ESP_LOGE(TAG, "Subscribe failed (%d)", err);
+    // }
     return ESP_OK;
 }
 

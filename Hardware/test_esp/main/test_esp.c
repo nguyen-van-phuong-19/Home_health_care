@@ -32,110 +32,72 @@ static int convolved_index = 0;
 static float convolved_signal[CONVOLVED_SIZE];
 static float vector_sum = 0.0f;
 
-static bool ble_is_connected = false;
+// static bool ble_is_connected = false;
 
 static uint16_t conn_handle = 0xffff;  // sẽ được set khi có kết nối
 
-// GAP event callback: lưu handle khi có kết nối / ngắt kết nối
-static int
-app_gap_event(struct ble_gap_event *event, void *arg)
-{
-    switch (event->type) {
-    case BLE_GAP_EVENT_CONNECT:
-        ble_is_connected = (event->connect.status == 0);
-        if (event->connect.status == 0) {
-            conn_handle = event->connect.conn_handle;
-            ESP_LOGI("BLE_APP", "Connected, handle=%d", conn_handle);
-        } else {
-            ESP_LOGW("BLE_APP", "Connection failed; restarting adv");
-            ble_gap_adv_start(BLE_OWN_ADDR_PUBLIC, NULL, BLE_HS_FOREVER,
-                              NULL, NULL, NULL);
-        }
-        break;
-
-    case BLE_GAP_EVENT_DISCONNECT:
-        ESP_LOGI("BLE_APP", "Disconnected, reason=%d", event->disconnect.reason);
-        ble_is_connected = false;
-        conn_handle = 0xffff;
-        // restart advertising
-        ble_gap_adv_start(BLE_OWN_ADDR_PUBLIC, NULL, BLE_HS_FOREVER,
-                          NULL, NULL, NULL);
-        break;
-
-    default:
-        break;
-    }
-    return 0;
-}
-
-bool ble_connected(void) {
-    return ble_is_connected;
-}
-
-
 void app_main(void)
 {
+    // wifi_init_sta("P101", "88888888");
+
     // 2) Khởi tạo LIS2DH12TR
-    ESP_ERROR_CHECK(i2c_master_init());
+    // ESP_ERROR_CHECK(i2c_master_init());
+    // ESP_ERROR_CHECK(lis2dh12_init());
     // ESP_ERROR_CHECK(max30102_init());
-    ESP_ERROR_CHECK(lis2dh12_init());
-    ESP_LOGI("MAIN", "I2C initialized");
+    // ESP_LOGI("MAIN", "I2C initialized");
 
-    // Create I2C mutex (with priority inheritance)
-    i2c_mutex = xSemaphoreCreateMutex();
-    mqtt_mutex = xSemaphoreCreateMutex();
-    configASSERT(i2c_mutex);
+    // // Create I2C mutex (with priority inheritance)
+    // i2c_mutex = xSemaphoreCreateMutex();
+    // mqtt_mutex = xSemaphoreCreateMutex();
+    // configASSERT(i2c_mutex);
 
-
-    ble_init();
-
-    // Khởi động advertising và chỉ định callback xử lý sự kiện GAP
-    static const struct ble_gap_adv_params adv_params = {
-        .conn_mode = BLE_GAP_CONN_MODE_UND,
-        .disc_mode = BLE_GAP_DISC_MODE_GEN,
-    };
-    int rc = ble_gap_adv_start(
-        BLE_OWN_ADDR_PUBLIC,
-        NULL,                 // không dùng dữ liệu scan response
-        BLE_HS_FOREVER,       // thời gian quảng bá vô hạn
-        &adv_params,
-        app_gap_event,        // callback khi có connect/disconnect
-        NULL                  // arg cho callback (nếu cần)
-    );
-    if (rc != 0) {
-        ESP_LOGE("APP_MAIN", "ble_gap_adv_start failed; rc=%d", rc);
+    if (ble_init() == ESP_OK) {
+        ESP_LOGI(TAG, "ble_init OK");
     }
+    while (1) {
+        vTaskDelay(pdMS_TO_TICKS(1000));
 
+        switch (ble_get_state()) {
+        case BLE_STATE_DISCONNECTED:
+            printf("BLE: disconnected\n");
+            break;
+        case BLE_STATE_ADVERTISING:
+            printf("BLE: advertising\n");
+            break;
+        case BLE_STATE_CONNECTED:
+            printf("BLE: connected (handle=%d)\n", ble_get_conn_handle());
+            break;
+        }
+    }
+    // xTaskCreateStatic(
+    //     lis2dh12_task,      // hàm task
+    //     "lis2dh12_task",    // tên task
+    //     LIS2DH12_TASK_STACK_SIZE,               // stack size (bytes)
+    //     NULL,               // tham số truyền vào
+    //     LIS2DH12_TASK_PRIORITY,
+    //     lis2dh12_stack,
+    //     &lis2dh12_tcb
+    // );
 
-    xTaskCreateStatic(
-        lis2dh12_task,      // hàm task
-        "lis2dh12_task",    // tên task
-        LIS2DH12_TASK_STACK_SIZE,               // stack size (bytes)
-        NULL,               // tham số truyền vào
-        LIS2DH12_TASK_PRIORITY,
-        lis2dh12_stack,
-        &lis2dh12_tcb
-    );
+    // xTaskCreateStatic(
+    //     max30102_task,      // hàm task
+    //     "max30102_task",    // tên task
+    //     MAX30102_TASK_STACK_SIZE,               // stack size (bytes)
+    //     NULL,               // tham số truyền vào
+    //     MAX30102_TASK_PRIORITY,
+    //     max30102_stack,
+    //     &max30102_tcb
+    // );
 
-    xTaskCreateStatic(
-        max30102_task,      // hàm task
-        "max30102_task",    // tên task
-        MAX30102_TASK_STACK_SIZE,               // stack size (bytes)
-        NULL,               // tham số truyền vào
-        MAX30102_TASK_PRIORITY,
-        max30102_stack,
-        &max30102_tcb
-    );
-
-    xTaskCreateStatic(
-        wifi_watchdog_task,         // entry fn
-        "wifi_watchdog",            // name
-        WIFI_WD_STACK_SIZE,         // stack depth (words)
-        NULL,                       // param
-        tskIDLE_PRIORITY + 1,       // priority
-        wifiWdStack,                // stack buffer
-        &wifiWdTCB                  // TCB buffer
-    );
+    // xTaskCreateStatic(
+    //     wifi_watchdog_task,         // entry fn
+    //     "wifi_watchdog",            // name
+    //     WIFI_WD_STACK_SIZE,         // stack depth (words)
+    //     NULL,                       // param
+    //     tskIDLE_PRIORITY + 1,       // priority
+    //     wifiWdStack,                // stack buffer
+    //     &wifiWdTCB                  // TCB buffer
+    // );
 
 }
 
@@ -155,12 +117,12 @@ static void lis2dh12_task(void *arg)
                 if(convolved_index >= 60 * 100){
                     EventBits_t bits = xEventGroupGetBits(eg);
                     if((bits & WIFI_CONNECTED_BIT) == 0) {
-                        if (ble_connected()) {
-                            int len = snprintf(payload, sizeof(payload),
-                                "{\"user_id\":\"user123\",\"total_vector\":%.2f}",
-                                vector_sum);
-                            ble_send_notification(conn_handle, payload, len);
-                        }
+                        // if (ble_connected()) {
+                        //     int len = snprintf(payload, sizeof(payload),
+                        //         "{\"user_id\":\"user123\",\"total_vector\":%.2f}",
+                        //         vector_sum);
+                        //     ble_send_notification(conn_handle, payload, len);
+                        // }
                     }else {
                         xEventGroupWaitBits(
                             mqtt_event_group,
@@ -223,16 +185,18 @@ static void max30102_task(void *arg)
                     //             (int)hr, spo2_avg, beats);
                     EventBits_t bits = xEventGroupGetBits(eg);
                     if((bits & WIFI_CONNECTED_BIT) == 0) {
-                        if (ble_connected()) {
-                            int len = snprintf(payload, sizeof(payload),
-                                "{\"user_id\":\"user123\",\"bpm\":%d,}",
-                                (int)hr);
-                            ble_send_notification(conn_handle, payload, len);
-                            len = snprintf(payload, sizeof(payload),
-                                "{\"user_id\":\"user123\",\"percentage\":%.1f,}",
-                                spo2_avg);
-                            ble_send_notification(conn_handle, payload, len);
-                        }
+                        // if (ble_connected()) {
+                        //     ESP_LOGI("RESULT", "Block (10s) -> HR: %d bpm, SpO2: %.1f%%, Beats: %d",
+                        //                 (int)hr, spo2_avg, beats);
+                        //     int len = snprintf(payload, sizeof(payload),
+                        //         "{\"user_id\":\"user123\",\"bpm\":%d,}",
+                        //         (int)hr);
+                        //     ble_send_notification(conn_handle, payload, len);
+                        //     len = snprintf(payload, sizeof(payload),
+                        //         "{\"user_id\":\"user123\",\"percentage\":%.1f,}",
+                        //         spo2_avg);
+                        //     ble_send_notification(conn_handle, payload, len);
+                        // }
                     }else {
                         xEventGroupWaitBits(
                             mqtt_event_group,

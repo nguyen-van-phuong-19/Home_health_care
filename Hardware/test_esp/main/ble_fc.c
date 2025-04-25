@@ -2,7 +2,22 @@
 
 
 static const char *TAG = "BLE_FC";
+
+static const struct ble_gap_adv_params adv_params = {
+    .conn_mode = BLE_GAP_CONN_MODE_UND,
+    .disc_mode = BLE_GAP_DISC_MODE_GEN,
+};
+
+// Biến toàn cục theo dõi kết nối
+static ble_state_t ble_current_state = BLE_STATE_DISCONNECTED;
+static bool         ble_connected     = false;
+static uint16_t     ble_conn_handle   = BLE_HS_CONN_HANDLE_NONE;
+
+// Handle của characteristic (đã có sẵn)
 static uint16_t ble_char_handle;
+
+static int
+ble_app_gap_event(struct ble_gap_event *event, void *arg);
 
 // GATT access callback: respond to read requests
 static int gatt_access_cb(uint16_t conn_handle, uint16_t attr_handle,
@@ -36,12 +51,11 @@ static void ble_app_on_sync(void)
     ble_svc_gap_device_name_set("ESP32-S3-BLE");
     ble_gatts_count_cfg(gatt_svr_svcs);
     ble_gatts_add_svcs(gatt_svr_svcs);
-    static const struct ble_gap_adv_params adv_params = {
-        .conn_mode = BLE_GAP_CONN_MODE_UND,
-        .disc_mode = BLE_GAP_DISC_MODE_GEN,
-    };
+    ble_current_state = BLE_STATE_ADVERTISING;
     ble_gap_adv_start(BLE_OWN_ADDR_PUBLIC, NULL, BLE_HS_FOREVER,
-                      &adv_params, NULL, NULL);
+                    &adv_params,
+                    ble_app_gap_event,  // <-- dùng callback mới
+                    NULL);
     ESP_LOGI(TAG, "Advertising started");
 }
 
@@ -78,6 +92,7 @@ esp_err_t ble_init(void)
     ble_hs_cfg.sync_cb = ble_app_on_sync;
     ble_hs_cfg.gatts_register_cb = ble_app_gatt_event;
     nimble_port_freertos_init(ble_host_task);
+    ESP_LOGI(TAG, "ahdjvbsjdv");
     return ESP_OK;
 }
 
@@ -100,4 +115,59 @@ esp_err_t ble_send_notification(uint16_t conn_handle,
                                      ble_char_handle,
                                      om);
     return rc == 0 ? ESP_OK : ESP_FAIL;
+}
+
+static int
+ble_app_gap_event(struct ble_gap_event *event, void *arg)
+{
+    switch (event->type) {
+    case BLE_GAP_EVENT_CONNECT:
+        if (event->connect.status == 0) {
+            ble_connected     = true;
+            ble_conn_handle   = event->connect.conn_handle;
+            ble_current_state = BLE_STATE_CONNECTED;
+            ESP_LOGI(TAG, "BLE connected; handle=%d", ble_conn_handle);
+        } else {
+            ESP_LOGE(TAG, "BLE connection failed; status=%d", event->connect.status);
+        }
+        return 0;
+
+    case BLE_GAP_EVENT_DISCONNECT:
+        ESP_LOGI(TAG, "BLE disconnected; reason=%d", event->disconnect.reason);
+        ble_connected     = false;
+        ble_conn_handle   = BLE_HS_CONN_HANDLE_NONE;
+        ble_current_state = BLE_STATE_DISCONNECTED;
+        ble_gap_adv_start(
+            BLE_OWN_ADDR_PUBLIC,
+            NULL,
+            BLE_HS_FOREVER,
+            &adv_params,
+            ble_app_gap_event,
+            NULL
+        );
+        return 0;
+
+    case BLE_GAP_EVENT_ADV_COMPLETE:
+        ESP_LOGI(TAG, "Advertising complete");
+        ble_current_state = BLE_STATE_DISCONNECTED;
+        return 0;
+
+    default:
+        return 0;
+    }
+}
+
+ble_state_t ble_get_state(void)
+{
+    return ble_current_state;
+}
+
+bool ble_is_connected(void)
+{
+    return ble_connected;
+}
+
+uint16_t ble_get_conn_handle(void)
+{
+    return ble_conn_handle;
 }

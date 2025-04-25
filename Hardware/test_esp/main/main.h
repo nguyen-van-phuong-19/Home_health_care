@@ -18,6 +18,10 @@ extern "C" {
 #include "mqtt_cl.h"
 #include "ble_fc.h"
 #include "LIS2DH12TR.h"
+#include "nvs_flash.h"
+#include "esp_nimble_hci.h"
+#include "nimble/nimble_port_freertos.h"
+#include "host/ble_hs.h"
 
 
 // I2C configuration cho ESP32-S3-N16R8 (sử dụng chân phù hợp với board của bạn)

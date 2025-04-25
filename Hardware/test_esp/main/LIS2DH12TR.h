@@ -9,7 +9,7 @@ extern "C" {
 #include <stddef.h>
 #include "driver/i2c.h"
 #include "esp_log.h"
-
+#include "mqtt_cl.h"
 
 // I2C address (SA0 = 1)
 #define LIS2DH12_ADDR        0x19
