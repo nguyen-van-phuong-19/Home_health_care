@@ -1,6 +1,5 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:wearable_app/core/config/firebase_options.dart';
 import 'package:wearable_app/screens/home_screen/home_screen.dart';
 import 'package:wearable_app/services/ble_service.dart';

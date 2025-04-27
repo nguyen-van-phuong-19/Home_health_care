@@ -3,7 +3,6 @@
 // import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:wearable_app/screens/history_screen/history_screen.dart';
@@ -22,9 +21,6 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final String _userId = 'user123';
-  List<ScanResult> _devices = [];
-  BluetoothDevice? _connected;
-  Stream<List<int>>? _notificationStream;
 
   int _heartRate = 0;
   double _spo2 = 0.0;
@@ -38,9 +34,6 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     // Listen to scan results and update UI
-    widget.bleService.scanResults.listen((results) {
-      setState(() => _devices = results);
-    });
     // Listen latest heart rate
     FirebaseService()
         .listenToChanges('users/$_userId/latest_heart_rate')
