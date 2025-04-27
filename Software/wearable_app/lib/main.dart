@@ -1,6 +1,7 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:wearable_app/core/config/firebase_options.dart';
+import 'package:wearable_app/core/utils/process_ble_data.dart';
 import 'package:wearable_app/screens/home_screen/home_screen.dart';
 import 'package:wearable_app/services/ble_service.dart';
 import 'package:wearable_app/services/location_publisher.dart';
@@ -15,12 +16,17 @@ Future<void> main() async {
     'user123',
     intervalMinutes: 1,
   ); // thay 'user123' bằng userId thực
-  // Instantiate the BLE service
+  // Khởi tạo BLE và ProcessBleData
   final bleService = BleService();
+  final processBle = ProcessBleDataService();
 
   try {
+    // Quét và kết nối đến ESP32-S3 theo MAC
     final device = await bleService.scanAndConnectById("CC:BA:97:0B:61:0E");
     print("Kết nối thành công đến: ${device.name} (${device.id})");
+
+    // Bắt đầu lắng nghe và xử lý dữ liệu BLE
+    processBle.startProcessing();
   } catch (e) {
     print("Không tìm thấy thiết bị hoặc kết nối thất bại: $e");
   }
