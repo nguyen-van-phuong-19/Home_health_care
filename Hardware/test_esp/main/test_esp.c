@@ -32,7 +32,6 @@ static int block_index = 0;
 static int convolved_index = 0;
 static float convolved_signal[CONVOLVED_SIZE];
 static float vector_sum = 0.0f;
-
 static uint16_t conn_handle = 0xffff;  // sẽ được set khi có kết nối
 
 void app_main(void)
@@ -40,54 +39,54 @@ void app_main(void)
     // wifi_init_sta("nguyen_phuong", "00000000");
 
     // 2) Khởi tạo LIS2DH12TR
-    // ESP_ERROR_CHECK(i2c_master_init());
-    // ESP_ERROR_CHECK(lis2dh12_init());
-    // ESP_ERROR_CHECK(max30102_init());
-    // ESP_LOGI("MAIN", "I2C initialized");
+    ESP_ERROR_CHECK(i2c_master_init());
+    ESP_ERROR_CHECK(lis2dh12_init());
+    ESP_ERROR_CHECK(max30102_init());
+    ESP_LOGI("MAIN", "I2C initialized");
 
     // // Create I2C mutex (with priority inheritance)
-    // i2c_mutex = xSemaphoreCreateMutex();
+    i2c_mutex = xSemaphoreCreateMutex();
     // mqtt_mutex = xSemaphoreCreateMutex();
-    // configASSERT(i2c_mutex);
+    configASSERT(i2c_mutex);
 
     ble_register_conn_cb(on_ble_conn);
     if (ble_init() == ESP_OK) {
         ESP_LOGI(TAG, "ble_init OK");
     }
-    while (1) {
-        vTaskDelay(pdMS_TO_TICKS(1000));
+    // while (1) {
+    //     vTaskDelay(pdMS_TO_TICKS(1000));
 
-        switch (ble_get_state()) {
-        case BLE_STATE_DISCONNECTED:
-            printf("BLE: disconnected\n");
-            break;
-        case BLE_STATE_ADVERTISING:
-            printf("BLE: advertising\n");
-            break;
-        case BLE_STATE_CONNECTED:
-            printf("BLE: connected (handle=%d)\n", ble_get_conn_handle());
-            break;
-        }
-    }
-    // xTaskCreateStatic(
-    //     lis2dh12_task,      // hàm task
-    //     "lis2dh12_task",    // tên task
-    //     LIS2DH12_TASK_STACK_SIZE,               // stack size (bytes)
-    //     NULL,               // tham số truyền vào
-    //     LIS2DH12_TASK_PRIORITY,
-    //     lis2dh12_stack,
-    //     &lis2dh12_tcb
-    // );
+    //     switch (ble_get_state()) {
+    //     case BLE_STATE_DISCONNECTED:
+    //         printf("BLE: disconnected\n");
+    //         break;
+    //     case BLE_STATE_ADVERTISING:
+    //         printf("BLE: advertising\n");
+    //         break;
+    //     case BLE_STATE_CONNECTED:
+    //         printf("BLE: connected (handle=%d)\n", ble_get_conn_handle());
+    //         break;
+    //     }
+    // }
+    xTaskCreateStatic(
+        lis2dh12_task,      // hàm task
+        "lis2dh12_task",    // tên task
+        LIS2DH12_TASK_STACK_SIZE,               // stack size (bytes)
+        NULL,               // tham số truyền vào
+        LIS2DH12_TASK_PRIORITY,
+        lis2dh12_stack,
+        &lis2dh12_tcb
+    );
 
-    // xTaskCreateStatic(
-    //     max30102_task,      // hàm task
-    //     "max30102_task",    // tên task
-    //     MAX30102_TASK_STACK_SIZE,               // stack size (bytes)
-    //     NULL,               // tham số truyền vào
-    //     MAX30102_TASK_PRIORITY,
-    //     max30102_stack,
-    //     &max30102_tcb
-    // );
+    xTaskCreateStatic(
+        max30102_task,      // hàm task
+        "max30102_task",    // tên task
+        MAX30102_TASK_STACK_SIZE,               // stack size (bytes)
+        NULL,               // tham số truyền vào
+        MAX30102_TASK_PRIORITY,
+        max30102_stack,
+        &max30102_tcb
+    );
 
     // xTaskCreateStatic(
     //     wifi_watchdog_task,         // entry fn
@@ -114,6 +113,8 @@ static void lis2dh12_task(void *arg)
                 // printf("Accel [m/s^2]: X=%7.3f  Y=%7.3f  Z=%7.3f\n",
                 //     acc.x, acc.y, acc.z);
                 if(convolved_index >= 60 * 100){
+                    ESP_LOGI(TAG, "total vector: %.2f",
+                                vector_sum);
                     EventBits_t bits = xEventGroupGetBits(ble_event_group);
                     // if((bits & WIFI_CONNECTED_BIT) == 0) {
                     if ((bits & BLE_CONNECTED_BIT)) {
@@ -124,10 +125,11 @@ static void lis2dh12_task(void *arg)
                     }
                     // }else {
                     // }
+                    vector_sum = 0.0f;
                     convolved_index = 0;
                 }
             } else {
-                ESP_LOGE("MAIN", "LIS2DH12TR read failed");
+                ESP_LOGE(TAG, "LIS2DH12TR read failed");
             }
             xSemaphoreGive(i2c_mutex);
         }
@@ -193,7 +195,7 @@ static void max30102_task(void *arg)
                     continue;
                 }
             } else {
-                ESP_LOGE("DATA", "Error reading sample");
+                ESP_LOGE(TAG, "Error reading sample");
             }
             xSemaphoreGive(i2c_mutex);
         }
@@ -201,7 +203,6 @@ static void max30102_task(void *arg)
     }
 
 }
-
 
 // static void wifi_watchdog_task(void *arg)
 // {
