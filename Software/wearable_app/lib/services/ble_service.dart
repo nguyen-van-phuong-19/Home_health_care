@@ -1,5 +1,21 @@
 import 'dart:async';
+import 'package:flutter/services.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
+
+class BleNative {
+  static const _channel = MethodChannel('com.yourcompany.ble_service');
+
+  /// Truyền vào mac và list UUID, gọi native khởi ForegroundService
+  static Future<void> startBleService({
+    required String mac,
+    required List<String> uuids,
+  }) async {
+    await _channel.invokeMethod('startBleService', {
+      'mac': mac,
+      'uuids': uuids,
+    });
+  }
+}
 
 /// A singleton service to manage BLE operations using flutter_blue_plus.
 class BleService {

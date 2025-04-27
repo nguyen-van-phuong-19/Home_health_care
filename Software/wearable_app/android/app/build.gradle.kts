@@ -48,4 +48,6 @@ dependencies {
   // Thư viện runtime để hỗ trợ desugaring
   coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
   // ... các dependencies khác của bạn
+  implementation("com.jakewharton.timber:timber:4.7.1")
+
 }
