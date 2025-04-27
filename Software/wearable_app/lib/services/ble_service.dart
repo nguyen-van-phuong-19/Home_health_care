@@ -7,7 +7,6 @@ class BleService {
   static final BleService _instance = BleService._privateConstructor();
   factory BleService() => _instance;
 
-  final FlutterBluePlus _flutterBlue = FlutterBluePlus();
   BluetoothDevice? _connectedDevice;
   StreamSubscription<BluetoothConnectionState>? _deviceStateSubscription;
 

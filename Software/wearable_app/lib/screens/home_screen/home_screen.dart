@@ -8,12 +8,10 @@ import 'package:latlong2/latlong.dart';
 import 'package:wearable_app/screens/history_screen/history_screen.dart';
 import 'package:wearable_app/screens/home_screen/widgets/build_stat_card.dart';
 import 'package:wearable_app/screens/sleep_screen/sleep_detail_screen.dart';
-import 'package:wearable_app/services/ble_service.dart';
 import 'package:wearable_app/services/firebase_service.dart';
 
 class HomeScreen extends StatefulWidget {
-  final BleService bleService;
-  const HomeScreen({super.key, required this.bleService});
+  const HomeScreen({super.key});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -99,13 +97,6 @@ class _HomeScreenState extends State<HomeScreen> {
     final h = hours.floor();
     final m = ((hours - h) * 60).round();
     return '${h}h ${m.toString().padLeft(2, '0')}m';
-  }
-
-  @override
-  void dispose() {
-    widget.bleService.stopScan();
-    widget.bleService.dispose();
-    super.dispose();
   }
 
   @override
