@@ -248,6 +248,7 @@ uint16_t ble_get_conn_handle(void)
 
 
 // int len = snprintf(payload, sizeof(payload),
-//     "{\"user_id\":\"user123\",\"lat\":%.6f,\"lon\":%.6f}",
-//     latitude, longitude);
+//     "{\"user_id\":\"user123\",\"lat\":%.6f,\"lon\":%.6f,\"alt\":%.2f}",
+//     latitude, longitude, altitude);
 // ble_send_notification(conn_handle, ble_gps_handle, payload, len);
+
