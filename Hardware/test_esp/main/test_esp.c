@@ -15,9 +15,9 @@ static StackType_t  lis2dh12_stack[LIS2DH12_TASK_STACK_SIZE];
 static StaticTask_t max30102_tcb;
 static StackType_t  max30102_stack[MAX30102_TASK_STACK_SIZE];
 // cấu hình stack/TCB để tạo task tĩnh
-#define WIFI_WD_STACK_SIZE 4096
-static StaticTask_t   wifiWdTCB;
-static StackType_t    wifiWdStack[WIFI_WD_STACK_SIZE];
+// #define WIFI_WD_STACK_SIZE 4096
+// static StaticTask_t   wifiWdTCB;
+// static StackType_t    wifiWdStack[WIFI_WD_STACK_SIZE];
 
 static SemaphoreHandle_t mqtt_mutex = NULL;
 
@@ -32,13 +32,11 @@ static int convolved_index = 0;
 static float convolved_signal[CONVOLVED_SIZE];
 static float vector_sum = 0.0f;
 
-// static bool ble_is_connected = false;
-
 static uint16_t conn_handle = 0xffff;  // sẽ được set khi có kết nối
 
 void app_main(void)
 {
-    // wifi_init_sta("P101", "88888888");
+    wifi_init_sta("nguyen_phuong", "00000000");
 
     // 2) Khởi tạo LIS2DH12TR
     // ESP_ERROR_CHECK(i2c_master_init());
@@ -117,29 +115,13 @@ static void lis2dh12_task(void *arg)
                 if(convolved_index >= 60 * 100){
                     EventBits_t bits = xEventGroupGetBits(eg);
                     if((bits & WIFI_CONNECTED_BIT) == 0) {
-                        // if (ble_connected()) {
+                        // if (ble_get_state() == BLE_STATE_CONNECTED) {
                         //     int len = snprintf(payload, sizeof(payload),
                         //         "{\"user_id\":\"user123\",\"total_vector\":%.2f}",
                         //         vector_sum);
                         //     ble_send_notification(conn_handle, payload, len);
                         // }
                     }else {
-                        xEventGroupWaitBits(
-                            mqtt_event_group,
-                            MQTT_CONNECTED_BIT,
-                            pdTRUE,
-                            pdFALSE,
-                            portMAX_DELAY
-                        );
-                        if(xSemaphoreTake(mqtt_mutex, portMAX_DELAY) == pdTRUE) {
-                            mqtt_publish_accelerometer(
-                                "user123",
-                                vector_sum,
-                                75.0f,
-                                1
-                            );
-                            xSemaphoreGive(mqtt_mutex);
-                        }
                     }
                     convolved_index = 0;
                 }
@@ -185,7 +167,7 @@ static void max30102_task(void *arg)
                     //             (int)hr, spo2_avg, beats);
                     EventBits_t bits = xEventGroupGetBits(eg);
                     if((bits & WIFI_CONNECTED_BIT) == 0) {
-                        // if (ble_connected()) {
+                        // if (ble_get_state() == BLE_STATE_CONNECTED) {
                         //     ESP_LOGI("RESULT", "Block (10s) -> HR: %d bpm, SpO2: %.1f%%, Beats: %d",
                         //                 (int)hr, spo2_avg, beats);
                         //     int len = snprintf(payload, sizeof(payload),
@@ -198,27 +180,6 @@ static void max30102_task(void *arg)
                         //     ble_send_notification(conn_handle, payload, len);
                         // }
                     }else {
-                        xEventGroupWaitBits(
-                            mqtt_event_group,
-                            MQTT_CONNECTED_BIT,
-                            pdTRUE,
-                            pdFALSE,
-                            portMAX_DELAY
-                        );
-                        if(xSemaphoreTake(mqtt_mutex, portMAX_DELAY) == pdTRUE) {
-                            mqtt_publish_heart_rate(
-                                "user123",
-                                (int)hr,
-                                75.0f,
-                                23,
-                                1
-                            );
-                            mqtt_publish_spo2(
-                                "user123",
-                                spo2_avg
-                            );
-                            xSemaphoreGive(mqtt_mutex);
-                        }
                     }
                     // Reset index để block mới
                     block_index = 0;
@@ -242,56 +203,56 @@ static void max30102_task(void *arg)
 }
 
 
-static void wifi_watchdog_task(void *arg)
-{
-    EventGroupHandle_t eg = wifi_event_group;
-    bool wifi_was_up   = true;
-    bool ble_started   = false;
+// static void wifi_watchdog_task(void *arg)
+// {
+//     EventGroupHandle_t eg = wifi_event_group;
+//     bool wifi_was_up   = true;
+//     bool ble_started   = false;
 
-    for (;;) {
-        EventBits_t bits = xEventGroupGetBits(eg);
+//     for (;;) {
+//         EventBits_t bits = xEventGroupGetBits(eg);
 
-        if ((bits & WIFI_CONNECTED_BIT) == 0) {
-            // —— Wi-Fi DOWN ——
-            if (wifi_was_up) {
-                // lần đầu phát hiện rớt, dọn dẹp MQTT + khởi BLE
-                ESP_LOGW(TAG, "WiFi lost: deinit MQTT, init BLE");
-                if (mqtt_deinit() == ESP_OK) {
-                    ESP_LOGI(TAG, "mqtt_deinit OK");
-                }
-                if (ble_init() == ESP_OK) {
-                    ESP_LOGI(TAG, "ble_init OK");
-                    ble_started = true;
-                }
-                wifi_was_up   = false;
-            }
+//         if ((bits & WIFI_CONNECTED_BIT) == 0) {
+//             // —— Wi-Fi DOWN ——
+//             if (wifi_was_up) {
+//                 // lần đầu phát hiện rớt, dọn dẹp MQTT + khởi BLE
+//                 ESP_LOGW(TAG, "WiFi lost: deinit MQTT, init BLE");
+//                 if (mqtt_deinit() == ESP_OK) {
+//                     ESP_LOGI(TAG, "mqtt_deinit OK");
+//                 }
+//                 if (ble_init() == ESP_OK) {
+//                     ESP_LOGI(TAG, "ble_init OK");
+//                     ble_started = true;
+//                 }
+//                 wifi_was_up   = false;
+//             }
 
-            // thử reconnect Wi-Fi
-            ESP_LOGI(TAG, "Watchdog: esp_wifi_connect()");
-            esp_err_t err = esp_wifi_connect();
-            if (err != ESP_OK) {
-                ESP_LOGE(TAG, "esp_wifi_connect() failed: %d", err);
-            }
+//             // thử reconnect Wi-Fi
+//             ESP_LOGI(TAG, "Watchdog: esp_wifi_connect()");
+//             esp_err_t err = esp_wifi_connect();
+//             if (err != ESP_OK) {
+//                 ESP_LOGE(TAG, "esp_wifi_connect() failed: %d", err);
+//             }
 
-        } else {
-            // —— Wi-Fi UP ——
-            if (!wifi_was_up) {
-                // lần đầu phát hiện lên lại, dọn BLE + khởi MQTT
-                ESP_LOGI(TAG, "WiFi reconnected: deinit BLE, init MQTT");
-                if (ble_started && ble_deinit() == ESP_OK) {
-                    ESP_LOGI(TAG, "ble_deinit OK");
-                }
-                // Giả sử bạn muốn tự động tái-khởi MQTT:
-                if (mqtt_init("mqtt://broker", "client_id", NULL) == ESP_OK) {
-                    ESP_LOGI(TAG, "mqtt_init OK");
-                }
-                // reset flags
-                ble_started  = false;
-                wifi_was_up   = true;
-            }
-        }
+//         } else {
+//             // —— Wi-Fi UP ——
+//             if (!wifi_was_up) {
+//                 // lần đầu phát hiện lên lại, dọn BLE + khởi MQTT
+//                 ESP_LOGI(TAG, "WiFi reconnected: deinit BLE, init MQTT");
+//                 if (ble_started && ble_deinit() == ESP_OK) {
+//                     ESP_LOGI(TAG, "ble_deinit OK");
+//                 }
+//                 // Giả sử bạn muốn tự động tái-khởi MQTT:
+//                 if (mqtt_init("mqtt://broker", "client_id", NULL) == ESP_OK) {
+//                     ESP_LOGI(TAG, "mqtt_init OK");
+//                 }
+//                 // reset flags
+//                 ble_started  = false;
+//                 wifi_was_up   = true;
+//             }
+//         }
 
-        // đợi 60s rồi lặp lại
-        vTaskDelay(pdMS_TO_TICKS(60000));
-    }
-}
+//         // đợi 60s rồi lặp lại
+//         vTaskDelay(pdMS_TO_TICKS(60000));
+//     }
+// }
