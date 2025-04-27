@@ -3,6 +3,25 @@
 
 static const char *TAG = "BLE_FC";
 
+// Service
+static const ble_uuid128_t svc_uuid =
+    BLE_UUID128_INIT(0xF0, 0xDE, 0xBC, 0x9A, 0x78, 0x56, 0x34, 0x12,
+                    0x34, 0x12, 0x78, 0x56, 0x34, 0x12, 0x56, 0x78);
+
+// Characteristics
+static const ble_uuid128_t chr_hr_uuid =
+    BLE_UUID128_INIT(0xF1, 0xDE, 0xBC, 0x9A, 0x78, 0x56, 0x34, 0x12,
+                    0x34, 0x12, 0x78, 0x56, 0x34, 0x12, 0x56, 0x78);
+static const ble_uuid128_t chr_spo2_uuid =
+    BLE_UUID128_INIT(0xF2, 0xDE, 0xBC, 0x9A, 0x78, 0x56, 0x34, 0x12,
+                    0x34, 0x12, 0x78, 0x56, 0x34, 0x12, 0x56, 0x78);
+static const ble_uuid128_t chr_acc_uuid =
+    BLE_UUID128_INIT(0xF3, 0xDE, 0xBC, 0x9A, 0x78, 0x56, 0x34, 0x12,
+                    0x34, 0x12, 0x78, 0x56, 0x34, 0x12, 0x56, 0x78);
+static const ble_uuid128_t chr_gps_uuid =
+    BLE_UUID128_INIT(0xF4, 0xDE, 0xBC, 0x9A, 0x78, 0x56, 0x34, 0x12,
+                    0x34, 0x12, 0x78, 0x56, 0x34, 0x12, 0x56, 0x78);
+
 static const struct ble_gap_adv_params adv_params = {
     .conn_mode = BLE_GAP_CONN_MODE_UND,
     .disc_mode = BLE_GAP_DISC_MODE_GEN,
@@ -37,21 +56,35 @@ static int gatt_access_cb(uint16_t conn_handle, uint16_t attr_handle,
 }
 
 // GATT service definition
-static const struct ble_gatt_svc_def gatt_svr_svcs[] = {
-    {
-        .type = BLE_GATT_SVC_TYPE_PRIMARY,
-        .uuid = BLE_UUID16_DECLARE(0x180A), // Device Information
-        .characteristics = (struct ble_gatt_chr_def[]) {{
-            .uuid = BLE_UUID16_DECLARE(0x2A29), // Manufacturer Name
-            .access_cb = gatt_access_cb,
-            .flags = BLE_GATT_CHR_F_READ,
-        }, {
-            0
-        }}
+static const struct ble_gatt_svc_def gatt_svr_svcs[] = { {
+    .type = BLE_GATT_SVC_TYPE_PRIMARY,
+    .uuid = &svc_uuid.u,
+    .characteristics = (struct ble_gatt_chr_def[]) { {
+        .uuid        = &chr_hr_uuid.u,
+        .access_cb   = gatt_access_cb,      // đọc/đọc notification
+        .flags       = BLE_GATT_CHR_F_READ  |
+                       BLE_GATT_CHR_F_NOTIFY,
     }, {
-        0
-    }
-};
+        .uuid        = &chr_spo2_uuid.u,
+        .access_cb   = gatt_access_cb,
+        .flags       = BLE_GATT_CHR_F_READ  |
+                       BLE_GATT_CHR_F_NOTIFY,
+    }, {
+        .uuid        = &chr_acc_uuid.u,
+        .access_cb   = gatt_access_cb,
+        .flags       = BLE_GATT_CHR_F_READ  |
+                       BLE_GATT_CHR_F_NOTIFY,
+    }, {
+        .uuid        = &chr_gps_uuid.u,
+        .access_cb   = gatt_access_cb,
+        .flags       = BLE_GATT_CHR_F_READ  |
+                       BLE_GATT_CHR_F_NOTIFY,
+    }, {
+        0  // kết thúc danh sách characteristics
+    } },
+}, {
+    0  // kết thúc danh sách services
+} };
 
 // BLE sync callback: set name, add services, start advertising
 static void ble_app_on_sync(void)

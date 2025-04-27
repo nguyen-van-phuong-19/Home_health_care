@@ -17,9 +17,6 @@ extern "C" {
 #include <stdbool.h>
 
 
-#define GATTS_SERVICE_UUID    0x00FF
-#define GATTS_CHAR_UUID       0xFF01
-#define GATTS_NUM_HANDLE      4
 #define ADV_INTERVAL_MIN      0x20
 #define ADV_INTERVAL_MAX      0x40
 typedef enum {
