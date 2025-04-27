@@ -104,7 +104,6 @@ void app_main(void)
 
 static void lis2dh12_task(void *arg)
 {
-    EventGroupHandle_t eg = wifi_event_group;
     lis2dh12_vector_t acc;
     char payload[256];
     for(;;) {
@@ -115,16 +114,16 @@ static void lis2dh12_task(void *arg)
                 // printf("Accel [m/s^2]: X=%7.3f  Y=%7.3f  Z=%7.3f\n",
                 //     acc.x, acc.y, acc.z);
                 if(convolved_index >= 60 * 100){
-                    EventBits_t bits = xEventGroupGetBits(eg);
-                    if((bits & WIFI_CONNECTED_BIT) == 0) {
-                        if (ble_get_state() == BLE_STATE_CONNECTED) {
-                            int len = snprintf(payload, sizeof(payload),
-                                "{\"user_id\":\"user123\",\"total_vector\":%.2f}",
-                                vector_sum);
-                            ble_send_notification(conn_handle, payload, len);
-                        }
-                    }else {
+                    EventBits_t bits = xEventGroupGetBits(ble_event_group);
+                    // if((bits & WIFI_CONNECTED_BIT) == 0) {
+                    if ((bits & BLE_CONNECTED_BIT)) {
+                        int len = snprintf(payload, sizeof(payload),
+                            "{\"user_id\":\"user123\",\"total_vector\":%.2f}",
+                            vector_sum);
+                        ble_send_notification(conn_handle, payload, len);
                     }
+                    // }else {
+                    // }
                     convolved_index = 0;
                 }
             } else {
@@ -144,7 +143,6 @@ static void max30102_task(void *arg)
     float duration_sec = 0.0f;
     uint32_t hr = 0;
     float spo2_avg = 0.0f;
-    EventGroupHandle_t eg = wifi_event_group;
     char payload[256];
 
     for(;;) {
@@ -167,22 +165,22 @@ static void max30102_task(void *arg)
                     
                     // ESP_LOGI("RESULT", "Block (10s) -> HR: %d bpm, SpO2: %.1f%%, Beats: %d",
                     //             (int)hr, spo2_avg, beats);
-                    EventBits_t bits = xEventGroupGetBits(eg);
-                    if((bits & WIFI_CONNECTED_BIT) == 0) {
-                        // if (ble_get_state() == BLE_STATE_CONNECTED) {
-                        //     ESP_LOGI("RESULT", "Block (10s) -> HR: %d bpm, SpO2: %.1f%%, Beats: %d",
-                        //                 (int)hr, spo2_avg, beats);
-                        //     int len = snprintf(payload, sizeof(payload),
-                        //         "{\"user_id\":\"user123\",\"bpm\":%d,}",
-                        //         (int)hr);
-                        //     ble_send_notification(conn_handle, payload, len);
-                        //     len = snprintf(payload, sizeof(payload),
-                        //         "{\"user_id\":\"user123\",\"percentage\":%.1f,}",
-                        //         spo2_avg);
-                        //     ble_send_notification(conn_handle, payload, len);
-                        // }
-                    }else {
+                    EventBits_t bits = xEventGroupGetBits(ble_event_group);
+                    // if((bits & WIFI_CONNECTED_BIT) == 0) {
+                    if ((bits & BLE_CONNECTED_BIT)) {
+                        // ESP_LOGI("RESULT", "Block (10s) -> HR: %d bpm, SpO2: %.1f%%, Beats: %d",
+                        //             (int)hr, spo2_avg, beats);
+                        int len = snprintf(payload, sizeof(payload),
+                            "{\"user_id\":\"user123\",\"bpm\":%d,}",
+                            (int)hr);
+                        ble_send_notification(conn_handle, payload, len);
+                        len = snprintf(payload, sizeof(payload),
+                            "{\"user_id\":\"user123\",\"percentage\":%.1f,}",
+                            spo2_avg);
+                        ble_send_notification(conn_handle, payload, len);
                     }
+                    // }else {
+                    // }
                     // Reset index để block mới
                     block_index = 0;
                     for(int i = 0; i < BLOCK_SIZE; i++) {

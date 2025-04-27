@@ -19,6 +19,10 @@ extern "C" {
 
 #define ADV_INTERVAL_MIN      0x20
 #define ADV_INTERVAL_MAX      0x40
+
+extern EventGroupHandle_t ble_event_group;
+#define BLE_CONNECTED_BIT  BIT0
+
 typedef enum {
     BLE_STATE_DISCONNECTED = 0,
     BLE_STATE_ADVERTISING,
@@ -27,6 +31,8 @@ typedef enum {
 
 typedef void (*ble_conn_cb_t)(uint16_t conn_handle);
 void ble_register_conn_cb(ble_conn_cb_t cb);
+
+
 /**
  * Lấy trạng thái hiện tại của BLE
  */
