@@ -21,12 +21,6 @@ extern uint16_t ble_spo2_handle;
 extern uint16_t ble_acc_handle;
 extern uint16_t ble_gps_handle;
 
-// Các UUID 128-bit bạn đã định nghĩa trước
-extern const ble_uuid128_t chr_hr_uuid;
-extern const ble_uuid128_t chr_spo2_uuid;
-extern const ble_uuid128_t chr_acc_uuid;
-extern const ble_uuid128_t chr_gps_uuid;
-
 #define ADV_INTERVAL_MIN      0x20
 #define ADV_INTERVAL_MAX      0x40
 

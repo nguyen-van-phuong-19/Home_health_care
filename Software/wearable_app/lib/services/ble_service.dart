@@ -5,7 +5,6 @@ import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 class BleNative {
   static const _channel = MethodChannel('com.yourcompany.ble_service');
 
-  /// Truyền vào mac và list UUID, gọi native khởi ForegroundService
   static Future<void> startBleService({
     required String mac,
     required List<String> uuids,
@@ -65,6 +64,7 @@ class BleService {
     print(device);
     _connectedDevice = device;
     // Listen to connection state changes
+    // ignore: deprecated_member_use
     _deviceStateSubscription = device.state.listen((
       BluetoothConnectionState state,
     ) {
@@ -84,10 +84,10 @@ class BleService {
 
   /// Discovers services and characteristics of the connected device.
   Future<List<BluetoothService>> discoverServices() async {
-    final services = _connectedDevice!.discoverServices();
     if (_connectedDevice == null) {
       throw Exception('No device connected');
     }
+    final services = _connectedDevice!.discoverServices();
     return services;
   }
 
@@ -123,7 +123,6 @@ class BleService {
     Guid serviceUuid,
     Guid charUuid,
   ) async {
-    print("jhsdbvsvj");
     final services = await discoverServices();
     print('Discovered ${services.length} services');
 
@@ -176,6 +175,7 @@ class BleService {
           found = r.device;
           await stopScan();
           await connectToDevice(r.device);
+          print("hadbvhsdv");
           await sub.cancel();
           break;
         }

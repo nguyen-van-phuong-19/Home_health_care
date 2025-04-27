@@ -20,6 +20,7 @@ class ProcessBleDataService {
 
   /// Khởi chạy listener cho cả 4 characteristic
   void startProcessing() {
+    print("start listening-----------------------------------");
     _listenHeartRate();
     _listenSpo2();
     _listenAccelerometer();
@@ -75,6 +76,7 @@ class ProcessBleDataService {
       try {
         final jsonString = utf8.decode(bytes);
         final Map<String, dynamic> map = jsonDecode(jsonString);
+        print(map);
         final acc = AccelerometerTopic(
           userId: map['user_id'] as String,
           totalVector: (map['total_vector'] as num).toDouble(),

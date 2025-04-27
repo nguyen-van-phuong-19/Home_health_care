@@ -35,22 +35,21 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  @override
-  void initState() {
-    super.initState();
-    // Đây là lúc engine đã khởi và MainActivity đã đăng ký MethodChannel
-    BleNative.startBleService(
-      mac: 'CC:BA:97:0B:61:0E',
-      uuids: [
-        '9abcdef0-5678-1234-3412-785634125678',
-        '9abcdef1-5678-1234-3412-785634125678',
-        '9abcdef2-5678-1234-3412-785634125678',
-        '9abcdef3-5678-1234-3412-785634125678',
-        '9abcdef4-5678-1234-3412-785634125678',
-      ],
-    );
-  }
-
+  // @override
+  // void initState() {
+  //   super.initState();
+  //   // Đây là lúc engine đã khởi và MainActivity đã đăng ký MethodChannel
+  //   BleNative.startBleService(
+  //     mac: 'CC:BA:97:0B:61:0E',
+  //     uuids: [
+  //       '9abcdef0-5678-1234-3412-785634125678',
+  //       '9abcdef1-5678-1234-3412-785634125678',
+  //       '9abcdef2-5678-1234-3412-785634125678',
+  //       '9abcdef3-5678-1234-3412-785634125678',
+  //       '9abcdef4-5678-1234-3412-785634125678',
+  //     ],
+  //   );
+  // }
   @override
   Widget build(BuildContext context) {
     return BleInitializer(
@@ -102,21 +101,37 @@ class _BleInitializerState extends State<BleInitializer> {
 
   Future<void> _attemptConnection() async {
     const macAddress = 'CC:BA:97:0B:61:0E';
-    const retryInterval = Duration(seconds: 30);
+    const retryInterval = Duration(seconds: 10);
     BluetoothDevice? device;
 
     while (device == null && mounted) {
       try {
         device = await _bleService.scanAndConnectById(macAddress);
-        // ignore: deprecated_member_use
-        debugPrint('BLE connected: ${device.name} (${device.id})');
+        debugPrint('BLE connecting to: ${device.name} (${device.id})');
+
+        // Chờ đến khi thật sự connected
+        await for (final state in _bleService.deviceState!) {
+          if (state == BluetoothConnectionState.connected) break;
+        }
+        debugPrint('BLE connected');
+
         _processBle.startProcessing();
       } catch (e) {
         debugPrint(
-          'BLE connect failed, retry in \${retryInterval.inSeconds}s: $e',
+          'BLE connect failed, retry in ${retryInterval.inSeconds}s: $e',
         );
         await Future.delayed(retryInterval);
       }
+    }
+    try {
+      device = await _bleService.scanAndConnectById(macAddress);
+      debugPrint('BLE connected: ${device.name} (${device.id})');
+      _processBle.startProcessing();
+    } catch (e) {
+      debugPrint(
+        'BLE connect failed, retry in \${retryInterval.inSeconds}s: $e',
+      );
+      await Future.delayed(retryInterval);
     }
   }
 

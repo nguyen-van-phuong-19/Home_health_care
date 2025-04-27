@@ -1,6 +1,9 @@
 #include "main.h"
+// #include "ble_store.h"
 
-#define LIS2DH12_TASK_STACK_SIZE    2048
+
+
+#define LIS2DH12_TASK_STACK_SIZE    (8*1024)
 #define MAX30102_TASK_STACK_SIZE    4096
 #define LIS2DH12_TASK_PRIORITY      5
 #define MAX30102_TASK_PRIORITY      5
@@ -41,7 +44,7 @@ void app_main(void)
     // 2) Khởi tạo LIS2DH12TR
     ESP_ERROR_CHECK(i2c_master_init());
     ESP_ERROR_CHECK(lis2dh12_init());
-    ESP_ERROR_CHECK(max30102_init());
+    // ESP_ERROR_CHECK(max30102_init());
     ESP_LOGI("MAIN", "I2C initialized");
 
     // // Create I2C mutex (with priority inheritance)
@@ -78,15 +81,15 @@ void app_main(void)
         &lis2dh12_tcb
     );
 
-    xTaskCreateStatic(
-        max30102_task,      // hàm task
-        "max30102_task",    // tên task
-        MAX30102_TASK_STACK_SIZE,               // stack size (bytes)
-        NULL,               // tham số truyền vào
-        MAX30102_TASK_PRIORITY,
-        max30102_stack,
-        &max30102_tcb
-    );
+    // xTaskCreateStatic(
+    //     max30102_task,      // hàm task
+    //     "max30102_task",    // tên task
+    //     MAX30102_TASK_STACK_SIZE,               // stack size (bytes)
+    //     NULL,               // tham số truyền vào
+    //     MAX30102_TASK_PRIORITY,
+    //     max30102_stack,
+    //     &max30102_tcb
+    // );
 
     // xTaskCreateStatic(
     //     wifi_watchdog_task,         // entry fn
@@ -112,7 +115,8 @@ static void lis2dh12_task(void *arg)
                 convolved_index++;
                 // printf("Accel [m/s^2]: X=%7.3f  Y=%7.3f  Z=%7.3f\n",
                 //     acc.x, acc.y, acc.z);
-                if(convolved_index >= 60 * 100){
+                
+                if(convolved_index >= 60 * 50){
                     ESP_LOGI(TAG, "total vector: %.2f",
                                 vector_sum);
                     EventBits_t bits = xEventGroupGetBits(ble_event_group);

@@ -1,33 +1,52 @@
 #include "ble_fc.h"
-
+#include "host/ble_uuid.h"
+#include "host/ble_gatt.h"
 
 static const char *TAG = "BLE_FC";
 
-// Service
-const ble_uuid128_t svc_uuid =
-    BLE_UUID128_INIT(0xF0, 0xDE, 0xBC, 0x9A, 0x78, 0x56, 0x34, 0x12,
-                    0x34, 0x12, 0x78, 0x56, 0x34, 0x12, 0x56, 0x78);
+// Định nghĩa byte cho UUID 128-bit
+#define SVC_UUID_BYTES   \
+    0xF0,0xDE,0xBC,0x9A, \
+    0x78,0x56,0x34,0x12, \
+    0x34,0x12,0x78,0x56, \
+    0x34,0x12,0x56,0x78
 
-// Characteristics
-const ble_uuid128_t chr_hr_uuid =
-    BLE_UUID128_INIT(0xF1, 0xDE, 0xBC, 0x9A, 0x78, 0x56, 0x34, 0x12,
-                    0x34, 0x12, 0x78, 0x56, 0x34, 0x12, 0x56, 0x78);
-const ble_uuid128_t chr_spo2_uuid =
-    BLE_UUID128_INIT(0xF2, 0xDE, 0xBC, 0x9A, 0x78, 0x56, 0x34, 0x12,
-                    0x34, 0x12, 0x78, 0x56, 0x34, 0x12, 0x56, 0x78);
-const ble_uuid128_t chr_acc_uuid =
-    BLE_UUID128_INIT(0xF3, 0xDE, 0xBC, 0x9A, 0x78, 0x56, 0x34, 0x12,
-                    0x34, 0x12, 0x78, 0x56, 0x34, 0x12, 0x56, 0x78);
-const ble_uuid128_t chr_gps_uuid =
-    BLE_UUID128_INIT(0xF4, 0xDE, 0xBC, 0x9A, 0x78, 0x56, 0x34, 0x12,
-                    0x34, 0x12, 0x78, 0x56, 0x34, 0x12, 0x56, 0x78);
+#define HR_UUID_BYTES    \
+    0xF1,0xDE,0xBC,0x9A, \
+    0x78,0x56,0x34,0x12, \
+    0x34,0x12,0x78,0x56, \
+    0x34,0x12,0x56,0x78
+
+#define SPO2_UUID_BYTES  \
+    0xF2,0xDE,0xBC,0x9A, \
+    0x78,0x56,0x34,0x12, \
+    0x34,0x12,0x78,0x56, \
+    0x34,0x12,0x56,0x78
+
+#define ACC_UUID_BYTES   \
+    0xF3,0xDE,0xBC,0x9A, \
+    0x78,0x56,0x34,0x12, \
+    0x34,0x12,0x78,0x56, \
+    0x34,0x12,0x56,0x78
+
+#define GPS_UUID_BYTES   \
+    0xF4,0xDE,0xBC,0x9A, \
+    0x78,0x56,0x34,0x12, \
+    0x34,0x12,0x78,0x56, \
+    0x34,0x12,0x56,0x78
+
+
 
 static const struct ble_gap_adv_params adv_params = {
-    .conn_mode = BLE_GAP_CONN_MODE_UND,
-    .disc_mode = BLE_GAP_DISC_MODE_GEN,
+    .conn_mode   = BLE_GAP_CONN_MODE_UND,
+    .disc_mode   = BLE_GAP_DISC_MODE_GEN,
+    .itvl_min    = BLE_GAP_ADV_FAST_INTERVAL1_MIN,
+    .itvl_max    = BLE_GAP_ADV_FAST_INTERVAL2_MAX,
+    .channel_map = BLE_GAP_ADV_DFLT_CHANNEL_MAP,
 };
 
-EventGroupHandle_t ble_event_group;
+
+EventGroupHandle_t ble_event_group = NULL;
 
 // Biến lưu callback do ứng dụng cung cấp
 static ble_conn_cb_t _user_cb = NULL;
@@ -64,49 +83,74 @@ static int gatt_access_cb(uint16_t conn_handle, uint16_t attr_handle,
 // GATT service definition
 static const struct ble_gatt_svc_def gatt_svr_svcs[] = { {
     .type = BLE_GATT_SVC_TYPE_PRIMARY,
-    .uuid = &svc_uuid.u,
+    .uuid = BLE_UUID128_DECLARE(SVC_UUID_BYTES),
+
     .characteristics = (struct ble_gatt_chr_def[]) { {
-        .uuid        = &chr_hr_uuid.u,
-        .access_cb   = gatt_access_cb,      // đọc/đọc notification
-        .flags       = BLE_GATT_CHR_F_READ  |
-                       BLE_GATT_CHR_F_NOTIFY,
+        .uuid       = BLE_UUID128_DECLARE(HR_UUID_BYTES),
+        .flags      = BLE_GATT_CHR_F_READ  |
+                      BLE_GATT_CHR_F_NOTIFY,
+        .val_handle = &ble_hr_handle,
     }, {
-        .uuid        = &chr_spo2_uuid.u,
-        .access_cb   = gatt_access_cb,
-        .flags       = BLE_GATT_CHR_F_READ  |
-                       BLE_GATT_CHR_F_NOTIFY,
+        .uuid       = BLE_UUID128_DECLARE(SPO2_UUID_BYTES),
+        .flags      = BLE_GATT_CHR_F_READ  |
+                      BLE_GATT_CHR_F_NOTIFY,
+        .val_handle = &ble_spo2_handle,
     }, {
-        .uuid        = &chr_acc_uuid.u,
-        .access_cb   = gatt_access_cb,
-        .flags       = BLE_GATT_CHR_F_READ  |
-                       BLE_GATT_CHR_F_NOTIFY,
+        .uuid       = BLE_UUID128_DECLARE(ACC_UUID_BYTES),
+        .flags      = BLE_GATT_CHR_F_READ  |
+                      BLE_GATT_CHR_F_NOTIFY,
+        .val_handle = &ble_acc_handle,
     }, {
-        .uuid        = &chr_gps_uuid.u,
-        .access_cb   = gatt_access_cb,
-        .flags       = BLE_GATT_CHR_F_READ  |
-                       BLE_GATT_CHR_F_NOTIFY,
+        .uuid       = BLE_UUID128_DECLARE(GPS_UUID_BYTES),
+        .flags      = BLE_GATT_CHR_F_READ  |
+                      BLE_GATT_CHR_F_NOTIFY,
+        .val_handle = &ble_gps_handle,
     }, {
-        0  // kết thúc danh sách characteristics
+        0  // end of this characteristic list
     } },
-}, {
-    0  // kết thúc danh sách services
-} };
+  },
+  {
+    0  // end of service list
+  },
+};
+
 
 // BLE sync callback: set name, add services, start advertising
-static void ble_app_on_sync(void)
-{
+static void ble_app_on_sync(void) {
+    // 1) Đăng ký Name + GATT services như cũ
     ble_svc_gap_device_name_set("ESP32-S3-BLE");
     ble_gatts_count_cfg(gatt_svr_svcs);
     ble_gatts_add_svcs(gatt_svr_svcs);
-    ble_current_state = BLE_STATE_ADVERTISING;
-    ble_gap_adv_start(BLE_OWN_ADDR_PUBLIC, NULL, BLE_HS_FOREVER,
-                    &adv_params,
-                    ble_app_gap_event,  // <-- dùng callback mới
-                    NULL);
-    ESP_LOGI(TAG, "Advertising started");
+
+struct ble_hs_adv_fields fields = {0};
+    fields.flags = BLE_HS_ADV_F_DISC_GEN | BLE_HS_ADV_F_BREDR_UNSUP;
+
+    // quảng bá service UUID 128-bit
+    fields.num_uuids128         = 1;
+    fields.uuids128             = (const ble_uuid_t*[]){
+        BLE_UUID128_DECLARE(SVC_UUID_BYTES)
+    };
+    fields.uuids128_is_complete = 1;
+
+    // (tuỳ chọn) quảng bá tên
+    const char *name = "ESP32-S3";
+    fields.name            = (uint8_t*)name;
+    fields.name_len        = strlen(name);
+    fields.name_is_complete = 1;
+
+    int rc = ble_gap_adv_set_fields(&fields);
+    if (rc) ESP_LOGE(TAG, "adv_set_fields failed: %d", rc);
+
+    rc = ble_gap_adv_start(
+      BLE_OWN_ADDR_PUBLIC, NULL, BLE_HS_FOREVER,
+      &adv_params,
+      ble_app_gap_event,
+      NULL
+    );
+    if (rc) ESP_LOGE(TAG, "adv_start failed: %d", rc);
 }
 
-// GATT registration event: capture handles
+
 static void
 ble_app_gatt_event(struct ble_gatt_register_ctxt *ctxt, void *arg)
 {
@@ -114,25 +158,33 @@ ble_app_gatt_event(struct ble_gatt_register_ctxt *ctxt, void *arg)
         return;
     }
 
-    // Lấy con trỏ UUID của char vừa register:
     const ble_uuid_t *u = ctxt->chr.chr_def->uuid;
     uint16_t          h = ctxt->chr.val_handle;
 
-    if (ble_uuid_cmp(u, &chr_hr_uuid.u) == 0) {
+    // So sánh trực tiếp với các UUID literal qua BLE_UUID128_DECLARE
+    if (ble_uuid_cmp(u,
+        BLE_UUID128_DECLARE( 0xF1,0xDE,0xBC,0x9A,0x78,0x56,0x34,0x12,
+                            0x34,0x12,0x78,0x56,0x34,0x12,0x56,0x78 )
+    ) == 0) {
         ble_hr_handle = h;
-        ESP_LOGI(TAG, "HR handle=%d", ble_hr_handle);
     }
-    else if (ble_uuid_cmp(u, &chr_spo2_uuid.u) == 0) {
+    else if (ble_uuid_cmp(u,
+        BLE_UUID128_DECLARE( 0xF2,0xDE,0xBC,0x9A,0x78,0x56,0x34,0x12,
+                            0x34,0x12,0x78,0x56,0x34,0x12,0x56,0x78 )
+    ) == 0) {
         ble_spo2_handle = h;
-        ESP_LOGI(TAG, "SpO2 handle=%d", ble_spo2_handle);
     }
-    else if (ble_uuid_cmp(u, &chr_acc_uuid.u) == 0) {
+    else if (ble_uuid_cmp(u,
+        BLE_UUID128_DECLARE( 0xF3,0xDE,0xBC,0x9A,0x78,0x56,0x34,0x12,
+                            0x34,0x12,0x78,0x56,0x34,0x12,0x56,0x78 )
+    ) == 0) {
         ble_acc_handle = h;
-        ESP_LOGI(TAG, "Acc handle=%d", ble_acc_handle);
     }
-    else if (ble_uuid_cmp(u, &chr_gps_uuid.u) == 0) {
+    else if (ble_uuid_cmp(u,
+        BLE_UUID128_DECLARE( 0xF4,0xDE,0xBC,0x9A,0x78,0x56,0x34,0x12,
+                            0x34,0x12,0x78,0x56,0x34,0x12,0x56,0x78 )
+    ) == 0) {
         ble_gps_handle = h;
-        ESP_LOGI(TAG, "GPS handle=%d", ble_gps_handle);
     }
 }
 
@@ -153,7 +205,7 @@ esp_err_t ble_init(void)
         ret = nvs_flash_init();
     }
     ESP_ERROR_CHECK(ret);
-
+    ble_event_group = xEventGroupCreate();
     nimble_port_init();                   // init controller & host
     ble_hs_cfg.reset_cb = NULL;
     ble_hs_cfg.sync_cb = ble_app_on_sync;
@@ -251,4 +303,3 @@ uint16_t ble_get_conn_handle(void)
 //     "{\"user_id\":\"user123\",\"lat\":%.6f,\"lon\":%.6f,\"alt\":%.2f}",
 //     latitude, longitude, altitude);
 // ble_send_notification(conn_handle, ble_gps_handle, payload, len);
-
