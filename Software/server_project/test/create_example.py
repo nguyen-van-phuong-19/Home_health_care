@@ -8,7 +8,7 @@ def initialize_firebase():
     """
     Khởi tạo kết nối tới Firebase Realtime Database
     """
-    cred = credentials.Certificate('sleep-system-7d563-firebase-adminsdk-fbsvc-df9f2e8fd0.json')
+    cred = credentials.Certificate('env/sleep-system-7d563-firebase-adminsdk-fbsvc-df9f2e8fd0.json')
     firebase_admin.initialize_app(cred, {
         "databaseURL": "https://sleep-system-7d563-default-rtdb.asia-southeast1.firebasedatabase.app/"
     })
