@@ -16,6 +16,16 @@ extern "C" {
 #include "esp_log.h"
 #include <stdbool.h>
 
+extern uint16_t ble_hr_handle;
+extern uint16_t ble_spo2_handle;
+extern uint16_t ble_acc_handle;
+extern uint16_t ble_gps_handle;
+
+// Các UUID 128-bit bạn đã định nghĩa trước
+extern const ble_uuid128_t chr_hr_uuid;
+extern const ble_uuid128_t chr_spo2_uuid;
+extern const ble_uuid128_t chr_acc_uuid;
+extern const ble_uuid128_t chr_gps_uuid;
 
 #define ADV_INTERVAL_MIN      0x20
 #define ADV_INTERVAL_MAX      0x40
@@ -52,7 +62,9 @@ uint16_t ble_get_conn_handle(void);
 esp_err_t ble_init(void);
 esp_err_t ble_deinit(void);
 esp_err_t ble_send_notification(uint16_t conn_handle,
-                                const void *data, uint16_t len);
+                                uint16_t char_handle,
+                                const void *data,
+                                uint16_t len);
 
 
 

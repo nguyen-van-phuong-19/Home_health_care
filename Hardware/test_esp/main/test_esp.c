@@ -121,7 +121,7 @@ static void lis2dh12_task(void *arg)
                         int len = snprintf(payload, sizeof(payload),
                             "{\"user_id\":\"user123\",\"total_vector\":%.2f}",
                             vector_sum);
-                        ble_send_notification(conn_handle, payload, len);
+                        ble_send_notification(conn_handle, ble_acc_handle, payload, len);
                     }
                     // }else {
                     // }
@@ -175,11 +175,11 @@ static void max30102_task(void *arg)
                         int len = snprintf(payload, sizeof(payload),
                             "{\"user_id\":\"user123\",\"bpm\":%d,}",
                             (int)hr);
-                        ble_send_notification(conn_handle, payload, len);
+                        ble_send_notification(conn_handle, ble_hr_handle, payload, len);
                         len = snprintf(payload, sizeof(payload),
                             "{\"user_id\":\"user123\",\"percentage\":%.1f,}",
                             spo2_avg);
-                        ble_send_notification(conn_handle, payload, len);
+                        ble_send_notification(conn_handle, ble_spo2_handle, payload, len);
                     }
                     // }else {
                     // }

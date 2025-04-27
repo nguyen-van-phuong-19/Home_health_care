@@ -4,21 +4,21 @@
 static const char *TAG = "BLE_FC";
 
 // Service
-static const ble_uuid128_t svc_uuid =
+const ble_uuid128_t svc_uuid =
     BLE_UUID128_INIT(0xF0, 0xDE, 0xBC, 0x9A, 0x78, 0x56, 0x34, 0x12,
                     0x34, 0x12, 0x78, 0x56, 0x34, 0x12, 0x56, 0x78);
 
 // Characteristics
-static const ble_uuid128_t chr_hr_uuid =
+const ble_uuid128_t chr_hr_uuid =
     BLE_UUID128_INIT(0xF1, 0xDE, 0xBC, 0x9A, 0x78, 0x56, 0x34, 0x12,
                     0x34, 0x12, 0x78, 0x56, 0x34, 0x12, 0x56, 0x78);
-static const ble_uuid128_t chr_spo2_uuid =
+const ble_uuid128_t chr_spo2_uuid =
     BLE_UUID128_INIT(0xF2, 0xDE, 0xBC, 0x9A, 0x78, 0x56, 0x34, 0x12,
                     0x34, 0x12, 0x78, 0x56, 0x34, 0x12, 0x56, 0x78);
-static const ble_uuid128_t chr_acc_uuid =
+const ble_uuid128_t chr_acc_uuid =
     BLE_UUID128_INIT(0xF3, 0xDE, 0xBC, 0x9A, 0x78, 0x56, 0x34, 0x12,
                     0x34, 0x12, 0x78, 0x56, 0x34, 0x12, 0x56, 0x78);
-static const ble_uuid128_t chr_gps_uuid =
+const ble_uuid128_t chr_gps_uuid =
     BLE_UUID128_INIT(0xF4, 0xDE, 0xBC, 0x9A, 0x78, 0x56, 0x34, 0x12,
                     0x34, 0x12, 0x78, 0x56, 0x34, 0x12, 0x56, 0x78);
 
@@ -43,7 +43,11 @@ static bool         ble_connected     = false;
 static uint16_t     ble_conn_handle   = BLE_HS_CONN_HANDLE_NONE;
 
 // Handle của characteristic (đã có sẵn)
-static uint16_t ble_char_handle;
+uint16_t ble_hr_handle   = BLE_HS_CONN_HANDLE_NONE;
+uint16_t ble_spo2_handle = BLE_HS_CONN_HANDLE_NONE;
+uint16_t ble_acc_handle  = BLE_HS_CONN_HANDLE_NONE;
+uint16_t ble_gps_handle  = BLE_HS_CONN_HANDLE_NONE;
+
 
 static int
 ble_app_gap_event(struct ble_gap_event *event, void *arg);
@@ -103,15 +107,35 @@ static void ble_app_on_sync(void)
 }
 
 // GATT registration event: capture handles
-static void ble_app_gatt_event(struct ble_gatt_register_ctxt *ctxt, void *arg)
+static void
+ble_app_gatt_event(struct ble_gatt_register_ctxt *ctxt, void *arg)
 {
-    if (ctxt->op == BLE_GATT_REGISTER_OP_SVC) {
-        ESP_LOGI(TAG, "Service registered; handle=%d", ctxt->svc.handle);
-    } else if (ctxt->op == BLE_GATT_REGISTER_OP_CHR) {
-        ble_char_handle = ctxt->chr.val_handle;
-        ESP_LOGI(TAG, "Characteristic registered; handle=%d", ble_char_handle);
+    if (ctxt->op != BLE_GATT_REGISTER_OP_CHR) {
+        return;
+    }
+
+    // Lấy con trỏ UUID của char vừa register:
+    const ble_uuid_t *u = ctxt->chr.chr_def->uuid;
+    uint16_t          h = ctxt->chr.val_handle;
+
+    if (ble_uuid_cmp(u, &chr_hr_uuid.u) == 0) {
+        ble_hr_handle = h;
+        ESP_LOGI(TAG, "HR handle=%d", ble_hr_handle);
+    }
+    else if (ble_uuid_cmp(u, &chr_spo2_uuid.u) == 0) {
+        ble_spo2_handle = h;
+        ESP_LOGI(TAG, "SpO2 handle=%d", ble_spo2_handle);
+    }
+    else if (ble_uuid_cmp(u, &chr_acc_uuid.u) == 0) {
+        ble_acc_handle = h;
+        ESP_LOGI(TAG, "Acc handle=%d", ble_acc_handle);
+    }
+    else if (ble_uuid_cmp(u, &chr_gps_uuid.u) == 0) {
+        ble_gps_handle = h;
+        ESP_LOGI(TAG, "GPS handle=%d", ble_gps_handle);
     }
 }
+
 
 // NimBLE host task
 static void ble_host_task(void *param)
@@ -150,15 +174,17 @@ esp_err_t ble_deinit(void)
 
 // Send notification over BLE
 esp_err_t ble_send_notification(uint16_t conn_handle,
+                                uint16_t char_handle,
                                 const void *data,
                                 uint16_t len)
 {
     struct os_mbuf *om = ble_hs_mbuf_from_flat(data, len);
     int rc = ble_gatts_notify_custom(conn_handle,
-                                     ble_char_handle,
+                                     char_handle,
                                      om);
-    return rc == 0 ? ESP_OK : ESP_FAIL;
+    return (rc == 0) ? ESP_OK : ESP_FAIL;
 }
+
 
 static int
 ble_app_gap_event(struct ble_gap_event *event, void *arg)
@@ -218,3 +244,10 @@ uint16_t ble_get_conn_handle(void)
 {
     return ble_conn_handle;
 }
+
+
+
+// int len = snprintf(payload, sizeof(payload),
+//     "{\"user_id\":\"user123\",\"lat\":%.6f,\"lon\":%.6f}",
+//     latitude, longitude);
+// ble_send_notification(conn_handle, ble_gps_handle, payload, len);
