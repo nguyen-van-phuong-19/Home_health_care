@@ -19,11 +19,12 @@ static StackType_t  max30102_stack[MAX30102_TASK_STACK_SIZE];
 // static StaticTask_t   wifiWdTCB;
 // static StackType_t    wifiWdStack[WIFI_WD_STACK_SIZE];
 
-static SemaphoreHandle_t mqtt_mutex = NULL;
+// static SemaphoreHandle_t mqtt_mutex = NULL;
 
 static void lis2dh12_task(void *arg);
 static void max30102_task(void *arg);
-static void wifi_watchdog_task(void *arg);
+// static void wifi_watchdog_task(void *arg);
+static void on_ble_conn(uint16_t h);
 
 static uint32_t red_block[BLOCK_SIZE];
 static uint32_t ir_block[BLOCK_SIZE];
@@ -36,7 +37,7 @@ static uint16_t conn_handle = 0xffff;  // sẽ được set khi có kết nối
 
 void app_main(void)
 {
-    wifi_init_sta("nguyen_phuong", "00000000");
+    // wifi_init_sta("nguyen_phuong", "00000000");
 
     // 2) Khởi tạo LIS2DH12TR
     // ESP_ERROR_CHECK(i2c_master_init());
@@ -49,6 +50,7 @@ void app_main(void)
     // mqtt_mutex = xSemaphoreCreateMutex();
     // configASSERT(i2c_mutex);
 
+    ble_register_conn_cb(on_ble_conn);
     if (ble_init() == ESP_OK) {
         ESP_LOGI(TAG, "ble_init OK");
     }
@@ -115,12 +117,12 @@ static void lis2dh12_task(void *arg)
                 if(convolved_index >= 60 * 100){
                     EventBits_t bits = xEventGroupGetBits(eg);
                     if((bits & WIFI_CONNECTED_BIT) == 0) {
-                        // if (ble_get_state() == BLE_STATE_CONNECTED) {
-                        //     int len = snprintf(payload, sizeof(payload),
-                        //         "{\"user_id\":\"user123\",\"total_vector\":%.2f}",
-                        //         vector_sum);
-                        //     ble_send_notification(conn_handle, payload, len);
-                        // }
+                        if (ble_get_state() == BLE_STATE_CONNECTED) {
+                            int len = snprintf(payload, sizeof(payload),
+                                "{\"user_id\":\"user123\",\"total_vector\":%.2f}",
+                                vector_sum);
+                            ble_send_notification(conn_handle, payload, len);
+                        }
                     }else {
                     }
                     convolved_index = 0;
@@ -256,3 +258,8 @@ static void max30102_task(void *arg)
 //         vTaskDelay(pdMS_TO_TICKS(60000));
 //     }
 // }
+
+
+static void on_ble_conn(uint16_t h) {
+  conn_handle = h;   // gán cho biến riêng của bạn
+}

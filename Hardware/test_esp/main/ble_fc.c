@@ -8,6 +8,14 @@ static const struct ble_gap_adv_params adv_params = {
     .disc_mode = BLE_GAP_DISC_MODE_GEN,
 };
 
+// Biến lưu callback do ứng dụng cung cấp
+static ble_conn_cb_t _user_cb = NULL;
+
+// Hàm cho phép ứng dụng truyền con trỏ hàm vào
+void ble_register_conn_cb(ble_conn_cb_t cb) {
+  _user_cb = cb;
+}
+
 // Biến toàn cục theo dõi kết nối
 static ble_state_t ble_current_state = BLE_STATE_DISCONNECTED;
 static bool         ble_connected     = false;
@@ -126,6 +134,7 @@ ble_app_gap_event(struct ble_gap_event *event, void *arg)
             ble_connected     = true;
             ble_conn_handle   = event->connect.conn_handle;
             ble_current_state = BLE_STATE_CONNECTED;
+            if (_user_cb) _user_cb(event->connect.conn_handle);
             ESP_LOGI(TAG, "BLE connected; handle=%d", ble_conn_handle);
         } else {
             ESP_LOGE(TAG, "BLE connection failed; status=%d", event->connect.status);
@@ -145,6 +154,7 @@ ble_app_gap_event(struct ble_gap_event *event, void *arg)
             ble_app_gap_event,
             NULL
         );
+        if (_user_cb) _user_cb(BLE_HS_CONN_HANDLE_NONE);
         return 0;
 
     case BLE_GAP_EVENT_ADV_COMPLETE:

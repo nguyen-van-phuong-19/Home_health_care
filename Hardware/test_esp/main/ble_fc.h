@@ -28,6 +28,8 @@ typedef enum {
     BLE_STATE_CONNECTED
 } ble_state_t;
 
+typedef void (*ble_conn_cb_t)(uint16_t conn_handle);
+void ble_register_conn_cb(ble_conn_cb_t cb);
 /**
  * Lấy trạng thái hiện tại của BLE
  */
