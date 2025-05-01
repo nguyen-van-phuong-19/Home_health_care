@@ -1,7 +1,6 @@
 *build/
-*Drivers/
+# *Drivers/
 *metadata/
-*settings/
-*stm32_board/
+# *settings/
 *node_modules/
 *eslintcache
