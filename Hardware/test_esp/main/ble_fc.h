@@ -24,7 +24,6 @@ extern uint16_t ble_acc_handle;
 extern uint16_t ble_gps_handle;
 
 #define ADV_SVC_COUNT 1
-#define ADV_CHAR_COUNT  (sizeof(adv_uuids_data) / 16)
 #define ADV_INTERVAL_MIN      0x20
 #define ADV_INTERVAL_MAX      0x40
 

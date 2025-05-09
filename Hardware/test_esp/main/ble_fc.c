@@ -35,8 +35,15 @@ static const char *TAG = "BLE_FC";
     0x34,0x12,0x78,0x56, \
     0x34,0x12,0x56,0x78
 
-// Raw UUID data for the primary service (to use in advertising)
+// Raw arrays for service and characteristic UUIDs
 static const uint8_t adv_svc_uuid128[16] = { SVC_UUID_BYTES };
+
+// static const uint8_t adv_char_uuids[] = {
+//     HR_UUID_BYTES,
+//     SPO2_UUID_BYTES,
+//     ACC_UUID_BYTES,
+//     GPS_UUID_BYTES
+// };
 
 static const struct ble_gap_adv_params adv_params = {
     .conn_mode   = BLE_GAP_CONN_MODE_UND,
@@ -91,8 +98,8 @@ static const struct ble_gatt_svc_def gatt_svr_svcs[] = { {
         .uuid       = BLE_UUID128_DECLARE(HR_UUID_BYTES),
         .flags      = BLE_GATT_CHR_F_READ  |
                       BLE_GATT_CHR_F_NOTIFY,
-        .val_handle = &ble_hr_handle,
         .access_cb = gatt_access_cb,
+        .val_handle = &ble_hr_handle,
     }, {
         .uuid       = BLE_UUID128_DECLARE(SPO2_UUID_BYTES),
         .flags      = BLE_GATT_CHR_F_READ  |
@@ -121,44 +128,52 @@ static const struct ble_gatt_svc_def gatt_svr_svcs[] = { {
 };
 
 
-// BLE sync callback: set name, add services, start advertising
-static void
-ble_app_on_sync(void)
+static void ble_app_on_sync(void)
 {
-    const char *name = "ESP32-S3";    // rút ngắn name nếu cần
+    const char *name = "ESP32-S3";
     int rc;
 
-    // 1) Init GAP/GATT như cũ
+    // Initialize GAP and GATT services
     ble_svc_gap_init();
-    ble_svc_gatt_init();
     ble_svc_gap_device_name_set(name);
     ble_gatts_count_cfg(gatt_svr_svcs);
     ble_gatts_add_svcs(gatt_svr_svcs);
 
-    // 2) Advertising packet: chỉ service UUID
-    // Advertising: chỉ service UUID
+    // Advertising: only service UUID + device name
     struct ble_hs_adv_fields adv_fields;
     memset(&adv_fields, 0, sizeof(adv_fields));
-    adv_fields.flags                = BLE_HS_ADV_F_DISC_GEN | BLE_HS_ADV_F_BREDR_UNSUP;
-    adv_fields.uuids128             = (uint8_t *)adv_svc_uuid128;
-    adv_fields.num_uuids128         = ADV_SVC_COUNT;
+
+    // General discoverable, no BR/EDR
+    adv_fields.flags = BLE_HS_ADV_F_DISC_GEN | BLE_HS_ADV_F_BREDR_UNSUP;
+
+    // Include complete device name
+    adv_fields.name = (uint8_t *)name;
+    adv_fields.name_len = strlen(name);
+    adv_fields.name_is_complete = 1;
+
+    // Embed only the primary service UUID (128-bit)
+    adv_fields.uuids128 = (const ble_uuid128_t *)adv_svc_uuid128;
+    adv_fields.num_uuids128 = ADV_SVC_COUNT;
     adv_fields.uuids128_is_complete = 1;
+
+    // Set advertising data
     rc = ble_gap_adv_set_fields(&adv_fields);
     if (rc) {
-        ESP_LOGE(TAG, "ble_gap_adv_set_fields (adv) failed: %d", rc);
+        ESP_LOGE(TAG, "ble_gap_adv_set_fields failed: %d", rc);
         return;
     }
 
-    // 4) Start advertising
-    struct ble_gap_adv_params adv_params = {
-        .conn_mode    = BLE_GAP_CONN_MODE_UND,
-        .disc_mode    = BLE_GAP_DISC_MODE_GEN,
-        .itvl_min     = 0x20,
-        .itvl_max     = 0x40,
-        .channel_map  = 0,  // default
-        .filter_policy = 0,
-    };
+    // Advertising parameters
+    struct ble_gap_adv_params adv_params;
+    memset(&adv_params, 0, sizeof(adv_params));
+    adv_params.conn_mode = BLE_GAP_CONN_MODE_UND;  // connectable
+    adv_params.disc_mode = BLE_GAP_DISC_MODE_GEN;  // discoverable
+    adv_params.itvl_min  = 0x20;
+    adv_params.itvl_max  = 0x40;
+    adv_params.channel_map = 0;                   // default: channels 37,38,39
+    adv_params.filter_policy = BLE_HCI_ADV_FILT_DEF;
 
+    // Determine address type and start advertising
     uint8_t own_addr_type;
     rc = ble_hs_id_infer_auto(0, &own_addr_type);
     if (rc) {
@@ -177,7 +192,7 @@ ble_app_on_sync(void)
     if (rc) {
         ESP_LOGE(TAG, "ble_gap_adv_start failed: %d", rc);
     } else {
-        ESP_LOGI(TAG, "Advertising started: service UUID in adv, name+chars in rsp");
+        ESP_LOGI(TAG, "Advertising started: Service UUID only");
     }
 }
 

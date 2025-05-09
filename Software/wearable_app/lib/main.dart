@@ -35,21 +35,6 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  // @override
-  // void initState() {
-  //   super.initState();
-  //   // Đây là lúc engine đã khởi và MainActivity đã đăng ký MethodChannel
-  //   BleNative.startBleService(
-  //     mac: 'CC:BA:97:0B:61:0E',
-  //     uuids: [
-  //       '9abcdef0-5678-1234-3412-785634125678',
-  //       '9abcdef1-5678-1234-3412-785634125678',
-  //       '9abcdef2-5678-1234-3412-785634125678',
-  //       '9abcdef3-5678-1234-3412-785634125678',
-  //       '9abcdef4-5678-1234-3412-785634125678',
-  //     ],
-  //   );
-  // }
   @override
   Widget build(BuildContext context) {
     return BleInitializer(
@@ -110,11 +95,12 @@ class _BleInitializerState extends State<BleInitializer> {
         debugPrint('BLE connecting to: ${device.name} (${device.id})');
 
         // Chờ đến khi thật sự connected
-        await for (final state in _bleService.deviceState!) {
+        await for (final state in _bleService.connectionState) {
           if (state == BluetoothConnectionState.connected) break;
         }
         debugPrint('BLE connected');
 
+        await Future.delayed(Duration(milliseconds: 2000));
         await _bleService.discoverServices();
         // _processBle.startProcessing();
       } catch (e) {
@@ -127,6 +113,13 @@ class _BleInitializerState extends State<BleInitializer> {
     try {
       device = await _bleService.scanAndConnectById(macAddress);
       debugPrint('BLE connected: ${device.name} (${device.id})');
+      // Chờ đến khi thật sự connected
+      await for (final state in _bleService.connectionState) {
+        if (state == BluetoothConnectionState.connected) break;
+      }
+      debugPrint('BLE connected');
+
+      await Future.delayed(Duration(milliseconds: 2000));
       // _processBle.startProcessing();
       await _bleService.discoverServices();
     } catch (e) {

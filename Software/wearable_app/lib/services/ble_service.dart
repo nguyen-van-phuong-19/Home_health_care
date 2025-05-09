@@ -40,6 +40,21 @@ class BleService {
     });
   }
 
+  // Define the connectionState getter
+  Stream<BluetoothConnectionState> get connectionState {
+    // Replace with actual implementation to return the connection state stream
+    return FlutterBluePlus.state.map((state) {
+      switch (state) {
+        case BluetoothAdapterState.on:
+          return BluetoothConnectionState.connected;
+        case BluetoothAdapterState.off:
+          return BluetoothConnectionState.disconnected;
+        default:
+          return BluetoothConnectionState.disconnected;
+      }
+    });
+  }
+
   /// Stops scanning for BLE devices.
   Future<void> stopScan() async {
     await FlutterBluePlus.stopScan();
@@ -54,7 +69,6 @@ class BleService {
     Duration timeout = const Duration(seconds: 10),
   }) async {
     // Set the current device and listen for its connection state changes
-    _connectedDevice = device;
     // Cancel any existing subscription to avoid multiple listeners
     await _connectionSubscription?.cancel();
     _connectionSubscription = device.connectionState.listen((state) {
@@ -74,6 +88,7 @@ class BleService {
     for (int attempt = 1; attempt <= 3; attempt++) {
       try {
         await device.connect(timeout: timeout, autoConnect: false);
+        _connectedDevice = device;
         // Connected successfully
         return;
       } catch (e) {
@@ -114,6 +129,7 @@ class BleService {
     }
     try {
       _services = await _connectedDevice!.discoverServices();
+      print(_services);
       return _services!;
     } catch (e) {
       throw Exception('Failed to discover services: $e');
@@ -245,6 +261,7 @@ class BleService {
       final result = matchingList.firstWhere(
         (r) => r.device.id.id.toUpperCase() == deviceId.toUpperCase(),
       );
+      print(result);
       await stopScan();
       await connectToDevice(result.device, timeout: timeout);
       return result.device;
