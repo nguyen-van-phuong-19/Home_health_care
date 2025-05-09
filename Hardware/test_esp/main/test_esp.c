@@ -42,15 +42,15 @@ void app_main(void)
     // wifi_init_sta("nguyen_phuong", "00000000");
 
     // 2) Khởi tạo LIS2DH12TR
-    ESP_ERROR_CHECK(i2c_master_init());
-    ESP_ERROR_CHECK(lis2dh12_init());
+    // ESP_ERROR_CHECK(i2c_master_init());
+    // ESP_ERROR_CHECK(lis2dh12_init());
     // ESP_ERROR_CHECK(max30102_init());
-    ESP_LOGI("MAIN", "I2C initialized");
+    // ESP_LOGI("MAIN", "I2C initialized");
 
     // // Create I2C mutex (with priority inheritance)
-    i2c_mutex = xSemaphoreCreateMutex();
+    // i2c_mutex = xSemaphoreCreateMutex();
     // mqtt_mutex = xSemaphoreCreateMutex();
-    configASSERT(i2c_mutex);
+    // configASSERT(i2c_mutex);
 
     ble_register_conn_cb(on_ble_conn);
     if (ble_init() == ESP_OK) {
@@ -71,15 +71,15 @@ void app_main(void)
     //         break;
     //     }
     // }
-    xTaskCreateStatic(
-        lis2dh12_task,      // hàm task
-        "lis2dh12_task",    // tên task
-        LIS2DH12_TASK_STACK_SIZE,               // stack size (bytes)
-        NULL,               // tham số truyền vào
-        LIS2DH12_TASK_PRIORITY,
-        lis2dh12_stack,
-        &lis2dh12_tcb
-    );
+    // xTaskCreateStatic(
+    //     lis2dh12_task,      // hàm task
+    //     "lis2dh12_task",    // tên task
+    //     LIS2DH12_TASK_STACK_SIZE,               // stack size (bytes)
+    //     NULL,               // tham số truyền vào
+    //     LIS2DH12_TASK_PRIORITY,
+    //     lis2dh12_stack,
+    //     &lis2dh12_tcb
+    // );
 
     // xTaskCreateStatic(
     //     max30102_task,      // hàm task

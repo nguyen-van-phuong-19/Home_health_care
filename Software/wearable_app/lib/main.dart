@@ -115,7 +115,8 @@ class _BleInitializerState extends State<BleInitializer> {
         }
         debugPrint('BLE connected');
 
-        _processBle.startProcessing();
+        await _bleService.discoverServices();
+        // _processBle.startProcessing();
       } catch (e) {
         debugPrint(
           'BLE connect failed, retry in ${retryInterval.inSeconds}s: $e',
@@ -126,8 +127,10 @@ class _BleInitializerState extends State<BleInitializer> {
     try {
       device = await _bleService.scanAndConnectById(macAddress);
       debugPrint('BLE connected: ${device.name} (${device.id})');
-      _processBle.startProcessing();
+      // _processBle.startProcessing();
+      await _bleService.discoverServices();
     } catch (e) {
+      debugPrint('again');
       debugPrint(
         'BLE connect failed, retry in \${retryInterval.inSeconds}s: $e',
       );

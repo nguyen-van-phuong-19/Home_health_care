@@ -35,7 +35,8 @@ static const char *TAG = "BLE_FC";
     0x34,0x12,0x78,0x56, \
     0x34,0x12,0x56,0x78
 
-
+// Raw UUID data for the primary service (to use in advertising)
+static const uint8_t adv_svc_uuid128[16] = { SVC_UUID_BYTES };
 
 static const struct ble_gap_adv_params adv_params = {
     .conn_mode   = BLE_GAP_CONN_MODE_UND,
@@ -77,6 +78,7 @@ static int gatt_access_cb(uint16_t conn_handle, uint16_t attr_handle,
 {
     const char *reply = "ESP32-S3-NimBLE";
     os_mbuf_append(ctxt->om, reply, strlen(reply));
+    ESP_LOGI(TAG, "jadvnkjsndvjksndv");
     return 0;
 }
 
@@ -90,20 +92,24 @@ static const struct ble_gatt_svc_def gatt_svr_svcs[] = { {
         .flags      = BLE_GATT_CHR_F_READ  |
                       BLE_GATT_CHR_F_NOTIFY,
         .val_handle = &ble_hr_handle,
+        .access_cb = gatt_access_cb,
     }, {
         .uuid       = BLE_UUID128_DECLARE(SPO2_UUID_BYTES),
         .flags      = BLE_GATT_CHR_F_READ  |
                       BLE_GATT_CHR_F_NOTIFY,
+        .access_cb = gatt_access_cb,
         .val_handle = &ble_spo2_handle,
     }, {
         .uuid       = BLE_UUID128_DECLARE(ACC_UUID_BYTES),
         .flags      = BLE_GATT_CHR_F_READ  |
                       BLE_GATT_CHR_F_NOTIFY,
+        .access_cb = gatt_access_cb,
         .val_handle = &ble_acc_handle,
     }, {
         .uuid       = BLE_UUID128_DECLARE(GPS_UUID_BYTES),
         .flags      = BLE_GATT_CHR_F_READ  |
                       BLE_GATT_CHR_F_NOTIFY,
+        .access_cb = gatt_access_cb,
         .val_handle = &ble_gps_handle,
     }, {
         0  // end of this characteristic list
@@ -116,38 +122,63 @@ static const struct ble_gatt_svc_def gatt_svr_svcs[] = { {
 
 
 // BLE sync callback: set name, add services, start advertising
-static void ble_app_on_sync(void) {
-    // 1) Đăng ký Name + GATT services như cũ
-    ble_svc_gap_device_name_set("ESP32-S3-BLE");
+static void
+ble_app_on_sync(void)
+{
+    const char *name = "ESP32-S3";    // rút ngắn name nếu cần
+    int rc;
+
+    // 1) Init GAP/GATT như cũ
+    ble_svc_gap_init();
+    ble_svc_gatt_init();
+    ble_svc_gap_device_name_set(name);
     ble_gatts_count_cfg(gatt_svr_svcs);
     ble_gatts_add_svcs(gatt_svr_svcs);
 
-struct ble_hs_adv_fields fields = {0};
-    fields.flags = BLE_HS_ADV_F_DISC_GEN | BLE_HS_ADV_F_BREDR_UNSUP;
+    // 2) Advertising packet: chỉ service UUID
+    // Advertising: chỉ service UUID
+    struct ble_hs_adv_fields adv_fields;
+    memset(&adv_fields, 0, sizeof(adv_fields));
+    adv_fields.flags                = BLE_HS_ADV_F_DISC_GEN | BLE_HS_ADV_F_BREDR_UNSUP;
+    adv_fields.uuids128             = (uint8_t *)adv_svc_uuid128;
+    adv_fields.num_uuids128         = ADV_SVC_COUNT;
+    adv_fields.uuids128_is_complete = 1;
+    rc = ble_gap_adv_set_fields(&adv_fields);
+    if (rc) {
+        ESP_LOGE(TAG, "ble_gap_adv_set_fields (adv) failed: %d", rc);
+        return;
+    }
 
-    // quảng bá service UUID 128-bit
-    fields.num_uuids128         = 1;
-    fields.uuids128             = (const ble_uuid_t*[]){
-        BLE_UUID128_DECLARE(SVC_UUID_BYTES)
+    // 4) Start advertising
+    struct ble_gap_adv_params adv_params = {
+        .conn_mode    = BLE_GAP_CONN_MODE_UND,
+        .disc_mode    = BLE_GAP_DISC_MODE_GEN,
+        .itvl_min     = 0x20,
+        .itvl_max     = 0x40,
+        .channel_map  = 0,  // default
+        .filter_policy = 0,
     };
-    fields.uuids128_is_complete = 1;
 
-    // (tuỳ chọn) quảng bá tên
-    const char *name = "ESP32-S3";
-    fields.name            = (uint8_t*)name;
-    fields.name_len        = strlen(name);
-    fields.name_is_complete = 1;
-
-    int rc = ble_gap_adv_set_fields(&fields);
-    if (rc) ESP_LOGE(TAG, "adv_set_fields failed: %d", rc);
+    uint8_t own_addr_type;
+    rc = ble_hs_id_infer_auto(0, &own_addr_type);
+    if (rc) {
+        ESP_LOGE(TAG, "ble_hs_id_infer_auto failed: %d", rc);
+        return;
+    }
 
     rc = ble_gap_adv_start(
-      BLE_OWN_ADDR_PUBLIC, NULL, BLE_HS_FOREVER,
-      &adv_params,
-      ble_app_gap_event,
-      NULL
+        own_addr_type,
+        NULL,
+        BLE_HS_FOREVER,
+        &adv_params,
+        ble_app_gap_event,
+        NULL
     );
-    if (rc) ESP_LOGE(TAG, "adv_start failed: %d", rc);
+    if (rc) {
+        ESP_LOGE(TAG, "ble_gap_adv_start failed: %d", rc);
+    } else {
+        ESP_LOGI(TAG, "Advertising started: service UUID in adv, name+chars in rsp");
+    }
 }
 
 
@@ -211,7 +242,6 @@ esp_err_t ble_init(void)
     ble_hs_cfg.sync_cb = ble_app_on_sync;
     ble_hs_cfg.gatts_register_cb = ble_app_gatt_event;
     nimble_port_freertos_init(ble_host_task);
-    ESP_LOGI(TAG, "ahdjvbsjdv");
     return ESP_OK;
 }
 
@@ -243,6 +273,10 @@ ble_app_gap_event(struct ble_gap_event *event, void *arg)
 {
     switch (event->type) {
     case BLE_GAP_EVENT_CONNECT:
+        int8_t rssi;
+        ble_gap_conn_rssi(event->connect.conn_handle, &rssi);
+        ESP_LOGI(TAG, "Connection RSSI = %d dBm", rssi);
+
         if (event->connect.status == 0) {
             ble_connected     = true;
             ble_conn_handle   = event->connect.conn_handle;
