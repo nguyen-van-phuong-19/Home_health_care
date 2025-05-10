@@ -51,14 +51,21 @@ void app_main(void)
     // i2c_mutex = xSemaphoreCreateMutex();
     // mqtt_mutex = xSemaphoreCreateMutex();
     // configASSERT(i2c_mutex);
+    uint8_t hr    = 70;        // hàm của bạn
+    uint8_t spo2  = 97;              // hàm của bạn
+    float   motion= 3832.45f;// hàm của bạn
 
-    ble_register_conn_cb(on_ble_conn);
-    if (ble_init() == ESP_OK) {
-        ESP_LOGI(TAG, "ble_init OK");
-    }
+    ble_app_init();
+
+    // Giả sử đọc cảm biến lần đầu:
+    send_sensor_data(75, 98, 1.23f);
     // while (1) {
     //     vTaskDelay(pdMS_TO_TICKS(1000));
-
+    // Sau đó mỗi 5s cập nhật lại:
+    for (;;) {
+      vTaskDelay(pdMS_TO_TICKS(1000 * 60));
+      send_sensor_data(hr++, spo2, motion++);
+    }
     //     switch (ble_get_state()) {
     //     case BLE_STATE_DISCONNECTED:
     //         printf("BLE: disconnected\n");
@@ -119,14 +126,6 @@ static void lis2dh12_task(void *arg)
                 if(convolved_index >= 60 * 50){
                     ESP_LOGI(TAG, "total vector: %.2f",
                                 vector_sum);
-                    EventBits_t bits = xEventGroupGetBits(ble_event_group);
-                    // if((bits & WIFI_CONNECTED_BIT) == 0) {
-                    if ((bits & BLE_CONNECTED_BIT)) {
-                        int len = snprintf(payload, sizeof(payload),
-                            "{\"user_id\":\"user123\",\"total_vector\":%.2f}",
-                            vector_sum);
-                        ble_send_notification(conn_handle, ble_acc_handle, payload, len);
-                    }
                     // }else {
                     // }
                     vector_sum = 0.0f;
@@ -171,20 +170,6 @@ static void max30102_task(void *arg)
                     
                     // ESP_LOGI("RESULT", "Block (10s) -> HR: %d bpm, SpO2: %.1f%%, Beats: %d",
                     //             (int)hr, spo2_avg, beats);
-                    EventBits_t bits = xEventGroupGetBits(ble_event_group);
-                    // if((bits & WIFI_CONNECTED_BIT) == 0) {
-                    if ((bits & BLE_CONNECTED_BIT)) {
-                        // ESP_LOGI("RESULT", "Block (10s) -> HR: %d bpm, SpO2: %.1f%%, Beats: %d",
-                        //             (int)hr, spo2_avg, beats);
-                        int len = snprintf(payload, sizeof(payload),
-                            "{\"user_id\":\"user123\",\"bpm\":%d,}",
-                            (int)hr);
-                        ble_send_notification(conn_handle, ble_hr_handle, payload, len);
-                        len = snprintf(payload, sizeof(payload),
-                            "{\"user_id\":\"user123\",\"percentage\":%.1f,}",
-                            spo2_avg);
-                        ble_send_notification(conn_handle, ble_spo2_handle, payload, len);
-                    }
                     // }else {
                     // }
                     // Reset index để block mới

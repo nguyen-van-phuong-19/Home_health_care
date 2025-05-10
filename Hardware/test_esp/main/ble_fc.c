@@ -1,354 +1,147 @@
+// File: ble_fc.c
+
 #include "ble_fc.h"
-#include "host/ble_uuid.h"
-#include "host/ble_gatt.h"
+#include "esp_log.h"
+#include "nvs_flash.h"
+#include "nimble/nimble_port.h"
+#include "nimble/nimble_port_freertos.h"
+#include "host/ble_hs.h"
+#include "services/gap/ble_svc_gap.h"
+#include <string.h>
 
 static const char *TAG = "BLE_FC";
 
-// Định nghĩa byte cho UUID 128-bit
+// 128-bit Service UUID (little-endian)
 #define SVC_UUID_BYTES   \
     0xF0,0xDE,0xBC,0x9A, \
     0x78,0x56,0x34,0x12, \
     0x34,0x12,0x78,0x56, \
     0x34,0x12,0x56,0x78
+static ble_uuid128_t svc_uuid128 = BLE_UUID128_INIT(SVC_UUID_BYTES);
+static const ble_uuid128_t *adv_uuids128[] = { &svc_uuid128 };
 
-#define HR_UUID_BYTES    \
-    0xF1,0xDE,0xBC,0x9A, \
-    0x78,0x56,0x34,0x12, \
-    0x34,0x12,0x78,0x56, \
-    0x34,0x12,0x56,0x78
+// Manufacturer Data buffer: Company ID (2 bytes) + payload (max 8 bytes)
+#define COMPANY_ID 0xABCD
+// Company ID vẫn 2 byte, payload tối đa 27 byte
+#define MFG_PAYLOAD_MAX 27
 
-#define SPO2_UUID_BYTES  \
-    0xF2,0xDE,0xBC,0x9A, \
-    0x78,0x56,0x34,0x12, \
-    0x34,0x12,0x78,0x56, \
-    0x34,0x12,0x56,0x78
-
-#define ACC_UUID_BYTES   \
-    0xF3,0xDE,0xBC,0x9A, \
-    0x78,0x56,0x34,0x12, \
-    0x34,0x12,0x78,0x56, \
-    0x34,0x12,0x56,0x78
-
-#define GPS_UUID_BYTES   \
-    0xF4,0xDE,0xBC,0x9A, \
-    0x78,0x56,0x34,0x12, \
-    0x34,0x12,0x78,0x56, \
-    0x34,0x12,0x56,0x78
-
-// Raw arrays for service and characteristic UUIDs
-static const uint8_t adv_svc_uuid128[16] = { SVC_UUID_BYTES };
-
-// static const uint8_t adv_char_uuids[] = {
-//     HR_UUID_BYTES,
-//     SPO2_UUID_BYTES,
-//     ACC_UUID_BYTES,
-//     GPS_UUID_BYTES
-// };
-
-static const struct ble_gap_adv_params adv_params = {
-    .conn_mode   = BLE_GAP_CONN_MODE_UND,
-    .disc_mode   = BLE_GAP_DISC_MODE_GEN,
-    .itvl_min    = BLE_GAP_ADV_FAST_INTERVAL1_MIN,
-    .itvl_max    = BLE_GAP_ADV_FAST_INTERVAL2_MAX,
-    .channel_map = BLE_GAP_ADV_DFLT_CHANNEL_MAP,
+static uint8_t mfg_data[2 + MFG_PAYLOAD_MAX] = {
+    (uint8_t)(COMPANY_ID & 0xFF),
+    (uint8_t)(COMPANY_ID >> 8)
+    // phần payload sẽ ghi vào từ chỉ số 2
 };
 
+// Advertising parameters
+static struct ble_gap_adv_params adv_params;
 
-EventGroupHandle_t ble_event_group = NULL;
-
-// Biến lưu callback do ứng dụng cung cấp
-static ble_conn_cb_t _user_cb = NULL;
-
-// Hàm cho phép ứng dụng truyền con trỏ hàm vào
-void ble_register_conn_cb(ble_conn_cb_t cb) {
-  _user_cb = cb;
+// BLE reset callback
+static void ble_on_reset(int reason) {
+    ESP_LOGE(TAG, "BLE reset; reason=%d", reason);
 }
 
-// Biến toàn cục theo dõi kết nối
-static ble_state_t ble_current_state = BLE_STATE_DISCONNECTED;
-static bool         ble_connected     = false;
-static uint16_t     ble_conn_handle   = BLE_HS_CONN_HANDLE_NONE;
-
-// Handle của characteristic (đã có sẵn)
-uint16_t ble_hr_handle   = BLE_HS_CONN_HANDLE_NONE;
-uint16_t ble_spo2_handle = BLE_HS_CONN_HANDLE_NONE;
-uint16_t ble_acc_handle  = BLE_HS_CONN_HANDLE_NONE;
-uint16_t ble_gps_handle  = BLE_HS_CONN_HANDLE_NONE;
-
-
-static int
-ble_app_gap_event(struct ble_gap_event *event, void *arg);
-
-// GATT access callback: respond to read requests
-static int gatt_access_cb(uint16_t conn_handle, uint16_t attr_handle,
-                          struct ble_gatt_access_ctxt *ctxt, void *arg)
-{
-    const char *reply = "ESP32-S3-NimBLE";
-    os_mbuf_append(ctxt->om, reply, strlen(reply));
-    ESP_LOGI(TAG, "jadvnkjsndvjksndv");
-    return 0;
-}
-
-// GATT service definition
-static const struct ble_gatt_svc_def gatt_svr_svcs[] = { {
-    .type = BLE_GATT_SVC_TYPE_PRIMARY,
-    .uuid = BLE_UUID128_DECLARE(SVC_UUID_BYTES),
-
-    .characteristics = (struct ble_gatt_chr_def[]) { {
-        .uuid       = BLE_UUID128_DECLARE(HR_UUID_BYTES),
-        .flags      = BLE_GATT_CHR_F_READ  |
-                      BLE_GATT_CHR_F_NOTIFY,
-        .access_cb = gatt_access_cb,
-        .val_handle = &ble_hr_handle,
-    }, {
-        .uuid       = BLE_UUID128_DECLARE(SPO2_UUID_BYTES),
-        .flags      = BLE_GATT_CHR_F_READ  |
-                      BLE_GATT_CHR_F_NOTIFY,
-        .access_cb = gatt_access_cb,
-        .val_handle = &ble_spo2_handle,
-    }, {
-        .uuid       = BLE_UUID128_DECLARE(ACC_UUID_BYTES),
-        .flags      = BLE_GATT_CHR_F_READ  |
-                      BLE_GATT_CHR_F_NOTIFY,
-        .access_cb = gatt_access_cb,
-        .val_handle = &ble_acc_handle,
-    }, {
-        .uuid       = BLE_UUID128_DECLARE(GPS_UUID_BYTES),
-        .flags      = BLE_GATT_CHR_F_READ  |
-                      BLE_GATT_CHR_F_NOTIFY,
-        .access_cb = gatt_access_cb,
-        .val_handle = &ble_gps_handle,
-    }, {
-        0  // end of this characteristic list
-    } },
-  },
-  {
-    0  // end of service list
-  },
-};
-
-
-static void ble_app_on_sync(void)
-{
-    const char *name = "ESP32-S3";
+// BLE sync callback: configure advertising and scan response
+static void ble_on_sync(void) {
+    ESP_LOGI(TAG, "BLE stack synced; configuring advertising");
     int rc;
 
-    // Initialize GAP and GATT services
-    ble_svc_gap_init();
-    ble_svc_gap_device_name_set(name);
-    ble_gatts_count_cfg(gatt_svr_svcs);
-    ble_gatts_add_svcs(gatt_svr_svcs);
-
-    // Advertising: only service UUID + device name
+    // 1) Advertising packet: flags + service UUID
     struct ble_hs_adv_fields adv_fields;
     memset(&adv_fields, 0, sizeof(adv_fields));
-
-    // General discoverable, no BR/EDR
-    adv_fields.flags = BLE_HS_ADV_F_DISC_GEN | BLE_HS_ADV_F_BREDR_UNSUP;
-
-    // Include complete device name
-    adv_fields.name = (uint8_t *)name;
-    adv_fields.name_len = strlen(name);
-    adv_fields.name_is_complete = 1;
-
-    // Embed only the primary service UUID (128-bit)
-    adv_fields.uuids128 = (const ble_uuid128_t *)adv_svc_uuid128;
-    adv_fields.num_uuids128 = ADV_SVC_COUNT;
+    adv_fields.flags                = BLE_HS_ADV_F_DISC_GEN | BLE_HS_ADV_F_BREDR_UNSUP;
+    adv_fields.uuids128             = (const ble_uuid128_t *)adv_uuids128;
+    adv_fields.num_uuids128         = 1;
     adv_fields.uuids128_is_complete = 1;
 
-    // Set advertising data
     rc = ble_gap_adv_set_fields(&adv_fields);
     if (rc) {
-        ESP_LOGE(TAG, "ble_gap_adv_set_fields failed: %d", rc);
+        ESP_LOGE(TAG, "ble_gap_adv_set_fields error: %d", rc);
         return;
     }
 
-    // Advertising parameters
-    struct ble_gap_adv_params adv_params;
-    memset(&adv_params, 0, sizeof(adv_params));
-    adv_params.conn_mode = BLE_GAP_CONN_MODE_UND;  // connectable
-    adv_params.disc_mode = BLE_GAP_DISC_MODE_GEN;  // discoverable
-    adv_params.itvl_min  = 0x20;
-    adv_params.itvl_max  = 0x40;
-    adv_params.channel_map = 0;                   // default: channels 37,38,39
-    adv_params.filter_policy = BLE_HCI_ADV_FILT_DEF;
+    // 2) Scan response: manufacturer data
+    struct ble_hs_adv_fields rsp_fields;
+    memset(&rsp_fields, 0, sizeof(rsp_fields));
+    rsp_fields.mfg_data     = mfg_data;
+    rsp_fields.mfg_data_len = sizeof(mfg_data);
 
-    // Determine address type and start advertising
+    rc = ble_gap_adv_rsp_set_fields(&rsp_fields);
+    if (rc) {
+        ESP_LOGE(TAG, "ble_gap_adv_rsp_set_fields error: %d", rc);
+        return;
+    }
+
+    // 3) Advertising parameters: non-connectable + general discoverable
+    memset(&adv_params, 0, sizeof(adv_params));
+    adv_params.conn_mode    = BLE_GAP_CONN_MODE_NON;
+    adv_params.disc_mode    = BLE_GAP_DISC_MODE_GEN;
+    adv_params.itvl_min     = 0x20; // ~20ms
+    adv_params.itvl_max     = 0x40; // ~40ms
+    adv_params.channel_map  = 0;
+    adv_params.filter_policy= BLE_HCI_ADV_FILT_DEF;
+
     uint8_t own_addr_type;
     rc = ble_hs_id_infer_auto(0, &own_addr_type);
     if (rc) {
-        ESP_LOGE(TAG, "ble_hs_id_infer_auto failed: %d", rc);
+        ESP_LOGE(TAG, "ble_hs_id_infer_auto error: %d", rc);
         return;
     }
 
-    rc = ble_gap_adv_start(
-        own_addr_type,
-        NULL,
-        BLE_HS_FOREVER,
-        &adv_params,
-        ble_app_gap_event,
-        NULL
-    );
+    rc = ble_gap_adv_start(own_addr_type, NULL, BLE_HS_FOREVER,
+                           &adv_params, NULL, NULL);
     if (rc) {
-        ESP_LOGE(TAG, "ble_gap_adv_start failed: %d", rc);
+        ESP_LOGE(TAG, "ble_gap_adv_start error: %d", rc);
     } else {
-        ESP_LOGI(TAG, "Advertising started: Service UUID only");
+        ESP_LOGI(TAG, "Advertising started");
     }
 }
 
-
-static void
-ble_app_gatt_event(struct ble_gatt_register_ctxt *ctxt, void *arg)
-{
-    if (ctxt->op != BLE_GATT_REGISTER_OP_CHR) {
-        return;
-    }
-
-    const ble_uuid_t *u = ctxt->chr.chr_def->uuid;
-    uint16_t          h = ctxt->chr.val_handle;
-
-    // So sánh trực tiếp với các UUID literal qua BLE_UUID128_DECLARE
-    if (ble_uuid_cmp(u,
-        BLE_UUID128_DECLARE( 0xF1,0xDE,0xBC,0x9A,0x78,0x56,0x34,0x12,
-                            0x34,0x12,0x78,0x56,0x34,0x12,0x56,0x78 )
-    ) == 0) {
-        ble_hr_handle = h;
-    }
-    else if (ble_uuid_cmp(u,
-        BLE_UUID128_DECLARE( 0xF2,0xDE,0xBC,0x9A,0x78,0x56,0x34,0x12,
-                            0x34,0x12,0x78,0x56,0x34,0x12,0x56,0x78 )
-    ) == 0) {
-        ble_spo2_handle = h;
-    }
-    else if (ble_uuid_cmp(u,
-        BLE_UUID128_DECLARE( 0xF3,0xDE,0xBC,0x9A,0x78,0x56,0x34,0x12,
-                            0x34,0x12,0x78,0x56,0x34,0x12,0x56,0x78 )
-    ) == 0) {
-        ble_acc_handle = h;
-    }
-    else if (ble_uuid_cmp(u,
-        BLE_UUID128_DECLARE( 0xF4,0xDE,0xBC,0x9A,0x78,0x56,0x34,0x12,
-                            0x34,0x12,0x78,0x56,0x34,0x12,0x56,0x78 )
-    ) == 0) {
-        ble_gps_handle = h;
-    }
-}
-
-
-// NimBLE host task
-static void ble_host_task(void *param)
-{
+// BLE host task
+static void ble_app_task(void *param) {
     nimble_port_run();
+    // Should not return
+    for (;;) {}
 }
 
-// Initialize BLE-only (NimBLE) GATT server
-esp_err_t ble_init(void)
-{
-    esp_err_t ret = nvs_flash_init();
-    if (ret == ESP_ERR_NVS_NO_FREE_PAGES ||
-        ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+// Initialize BLE: NVS, NimBLE port, callbacks, task
+void ble_app_init(void) {
+    esp_err_t err = nvs_flash_init();
+    if (err == ESP_ERR_NVS_NO_FREE_PAGES || err == ESP_ERR_NVS_NEW_VERSION_FOUND) {
         ESP_ERROR_CHECK(nvs_flash_erase());
-        ret = nvs_flash_init();
+        err = nvs_flash_init();
     }
-    ESP_ERROR_CHECK(ret);
-    ble_event_group = xEventGroupCreate();
-    nimble_port_init();                   // init controller & host
-    ble_hs_cfg.reset_cb = NULL;
-    ble_hs_cfg.sync_cb = ble_app_on_sync;
-    ble_hs_cfg.gatts_register_cb = ble_app_gatt_event;
-    nimble_port_freertos_init(ble_host_task);
-    return ESP_OK;
+    ESP_ERROR_CHECK(err);
+
+    nimble_port_init();
+    ble_hs_cfg.reset_cb = ble_on_reset;
+    ble_hs_cfg.sync_cb  = ble_on_sync;
+    nimble_port_freertos_init(ble_app_task);
 }
 
-// Deinitialize BLE
-esp_err_t ble_deinit(void)
-{
-    ESP_LOGI(TAG, "Stopping BLE host");
-    nimble_port_stop();
-    nimble_port_deinit();
-    return ESP_OK;
-}
-
-// Send notification over BLE
-esp_err_t ble_send_notification(uint16_t conn_handle,
-                                uint16_t char_handle,
-                                const void *data,
-                                uint16_t len)
-{
-    struct os_mbuf *om = ble_hs_mbuf_from_flat(data, len);
-    int rc = ble_gatts_notify_custom(conn_handle,
-                                     char_handle,
-                                     om);
-    return (rc == 0) ? ESP_OK : ESP_FAIL;
-}
-
-
-static int
-ble_app_gap_event(struct ble_gap_event *event, void *arg)
-{
-    switch (event->type) {
-    case BLE_GAP_EVENT_CONNECT:
-        int8_t rssi;
-        ble_gap_conn_rssi(event->connect.conn_handle, &rssi);
-        ESP_LOGI(TAG, "Connection RSSI = %d dBm", rssi);
-
-        if (event->connect.status == 0) {
-            ble_connected     = true;
-            ble_conn_handle   = event->connect.conn_handle;
-            ble_current_state = BLE_STATE_CONNECTED;
-            if (_user_cb) _user_cb(event->connect.conn_handle);
-            xEventGroupSetBits(ble_event_group, BLE_CONNECTED_BIT);
-            ESP_LOGI(TAG, "BLE connected; handle=%d", ble_conn_handle);
-        } else {
-            ESP_LOGE(TAG, "BLE connection failed; status=%d", event->connect.status);
-        }
-        return 0;
-
-    case BLE_GAP_EVENT_DISCONNECT:
-        ESP_LOGI(TAG, "BLE disconnected; reason=%d", event->disconnect.reason);
-        ble_connected     = false;
-        ble_conn_handle   = BLE_HS_CONN_HANDLE_NONE;
-        ble_current_state = BLE_STATE_DISCONNECTED;
-        ble_gap_adv_start(
-            BLE_OWN_ADDR_PUBLIC,
-            NULL,
-            BLE_HS_FOREVER,
-            &adv_params,
-            ble_app_gap_event,
-            NULL
-        );
-        if (_user_cb) _user_cb(BLE_HS_CONN_HANDLE_NONE);
-        xEventGroupClearBits(ble_event_group, BLE_CONNECTED_BIT);
-        return 0;
-
-    case BLE_GAP_EVENT_ADV_COMPLETE:
-        ESP_LOGI(TAG, "Advertising complete");
-        ble_current_state = BLE_STATE_DISCONNECTED;
-        return 0;
-
-    default:
-        return 0;
+// Update manufacturer data payload dynamically
+void update_service_data(const uint8_t *data, uint8_t len) {
+    if (len > MFG_PAYLOAD_MAX) {
+        len = MFG_PAYLOAD_MAX;
+    }
+    memcpy(&mfg_data[2], data, len);
+    // update scan response fields
+    struct ble_hs_adv_fields rsp_fields;
+    memset(&rsp_fields, 0, sizeof(rsp_fields));
+    rsp_fields.mfg_data     = mfg_data;
+    rsp_fields.mfg_data_len = 2 + len;
+    int rc = ble_gap_adv_rsp_set_fields(&rsp_fields);
+    if (rc) {
+        ESP_LOGE(TAG, "update_service_data error: %d", rc);
+    } else {
+        ESP_LOGI(TAG, "Manufacturer Data updated len=%d", len);
     }
 }
 
-ble_state_t ble_get_state(void)
-{
-    return ble_current_state;
+void send_sensor_data(uint8_t hr, uint8_t spo2, float motion) {
+    uint8_t buf[1 + 1 + 4];  // 1 byte hr + 1 byte spo2 + 4 byte float
+    buf[0] = hr;
+    buf[1] = spo2;
+    memcpy(&buf[2], &motion, sizeof(motion));  // ghi float little-endian
+
+    // gọi hàm update_service_data đã có để up payload
+    update_service_data(buf, sizeof(buf));
 }
-
-bool ble_is_connected(void)
-{
-    return ble_connected;
-}
-
-uint16_t ble_get_conn_handle(void)
-{
-    return ble_conn_handle;
-}
-
-
-
-// int len = snprintf(payload, sizeof(payload),
-//     "{\"user_id\":\"user123\",\"lat\":%.6f,\"lon\":%.6f,\"alt\":%.2f}",
-//     latitude, longitude, altitude);
-// ble_send_notification(conn_handle, ble_gps_handle, payload, len);

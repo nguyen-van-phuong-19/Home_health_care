@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
@@ -62,73 +63,38 @@ class BleInitializer extends StatefulWidget {
 }
 
 class _BleInitializerState extends State<BleInitializer> {
-  final BleService _bleService = BleService();
-  final ProcessBleDataService _processBle = ProcessBleDataService();
   StreamSubscription<BluetoothConnectionState>? _connSub;
 
   @override
   void initState() {
     super.initState();
-    _setupBle();
+    _listenScan();
   }
 
-  void _setupBle() {
-    // Bắt đầu kết nối và lắng nghe lại khi thất bại hoặc ngắt kết nối
-    _attemptConnection();
-    // Nghe trạng thái kết nối để tự động reconnect
-    _connSub = _bleService.deviceState?.listen((state) {
-      if (state == BluetoothConnectionState.disconnected) {
-        debugPrint('BLE disconnected, retrying...');
-        _attemptConnection();
+  /// Lắng nghe sự kiện scan và kết nối với thiết bị
+  Future<void> _listenScan() async {
+    FlutterBluePlus.scanResults.listen((results) {
+      for (final r in results) {
+        handleScanResult(r);
       }
     });
+    await FlutterBluePlus.startScan(
+      androidScanMode: AndroidScanMode.lowLatency,
+    );
   }
 
-  Future<void> _attemptConnection() async {
-    const macAddress = 'CC:BA:97:0B:61:0E';
-    const retryInterval = Duration(seconds: 10);
-    BluetoothDevice? device;
+  void handleScanResult(ScanResult r) {
+    final m = r.advertisementData.manufacturerData;
+    // Key là Company ID (0xABCD)
+    final data = m[0xABCD];
+    if (data == null || data.length < 6) return;
 
-    while (device == null && mounted) {
-      try {
-        device = await _bleService.scanAndConnectById(macAddress);
-        debugPrint('BLE connecting to: ${device.name} (${device.id})');
+    final bd = ByteData.sublistView(Uint8List.fromList(data));
+    final hr = bd.getUint8(0);
+    final spo2 = bd.getUint8(1);
+    final motion = bd.getFloat32(2, Endian.little);
 
-        // Chờ đến khi thật sự connected
-        await for (final state in _bleService.connectionState) {
-          if (state == BluetoothConnectionState.connected) break;
-        }
-        debugPrint('BLE connected');
-
-        await Future.delayed(Duration(milliseconds: 2000));
-        await _bleService.discoverServices();
-        // _processBle.startProcessing();
-      } catch (e) {
-        debugPrint(
-          'BLE connect failed, retry in ${retryInterval.inSeconds}s: $e',
-        );
-        await Future.delayed(retryInterval);
-      }
-    }
-    try {
-      device = await _bleService.scanAndConnectById(macAddress);
-      debugPrint('BLE connected: ${device.name} (${device.id})');
-      // Chờ đến khi thật sự connected
-      await for (final state in _bleService.connectionState) {
-        if (state == BluetoothConnectionState.connected) break;
-      }
-      debugPrint('BLE connected');
-
-      await Future.delayed(Duration(milliseconds: 2000));
-      // _processBle.startProcessing();
-      await _bleService.discoverServices();
-    } catch (e) {
-      debugPrint('again');
-      debugPrint(
-        'BLE connect failed, retry in \${retryInterval.inSeconds}s: $e',
-      );
-      await Future.delayed(retryInterval);
-    }
+    print('HR: $hr, SpO2: $spo2, Motion: ${motion.toStringAsFixed(2)}');
   }
 
   @override
