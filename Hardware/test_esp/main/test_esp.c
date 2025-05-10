@@ -39,7 +39,7 @@ static uint16_t conn_handle = 0xffff;  // sẽ được set khi có kết nối
 
 void app_main(void)
 {
-    // wifi_init_sta("nguyen_phuong", "00000000");
+    wifi_init_sta("102", "11111111");
 
     // 2) Khởi tạo LIS2DH12TR
     // ESP_ERROR_CHECK(i2c_master_init());
@@ -51,21 +51,21 @@ void app_main(void)
     // i2c_mutex = xSemaphoreCreateMutex();
     // mqtt_mutex = xSemaphoreCreateMutex();
     // configASSERT(i2c_mutex);
-    uint8_t hr    = 70;        // hàm của bạn
-    uint8_t spo2  = 97;              // hàm của bạn
-    float   motion= 3832.45f;// hàm của bạn
+    // uint8_t hr    = 70;        // hàm của bạn
+    // uint8_t spo2  = 97;              // hàm của bạn
+    // float   motion= 3832.45f;// hàm của bạn
 
-    ble_app_init();
+    // ble_app_init();
 
-    // Giả sử đọc cảm biến lần đầu:
-    send_sensor_data(75, 98, 1.23f);
+    // // Giả sử đọc cảm biến lần đầu:
+    // send_sensor_data(75, 98, 1.23f);
     // while (1) {
     //     vTaskDelay(pdMS_TO_TICKS(1000));
     // Sau đó mỗi 5s cập nhật lại:
-    for (;;) {
-      vTaskDelay(pdMS_TO_TICKS(1000 * 60));
-      send_sensor_data(hr++, spo2, motion++);
-    }
+    // for (;;) {
+    //   vTaskDelay(pdMS_TO_TICKS(1000 * 60));
+    //   send_sensor_data(hr++, spo2, motion++);
+    // }
     //     switch (ble_get_state()) {
     //     case BLE_STATE_DISCONNECTED:
     //         printf("BLE: disconnected\n");
@@ -122,7 +122,7 @@ static void lis2dh12_task(void *arg)
                 convolved_index++;
                 // printf("Accel [m/s^2]: X=%7.3f  Y=%7.3f  Z=%7.3f\n",
                 //     acc.x, acc.y, acc.z);
-                
+
                 if(convolved_index >= 60 * 50){
                     ESP_LOGI(TAG, "total vector: %.2f",
                                 vector_sum);
@@ -156,18 +156,18 @@ static void max30102_task(void *arg)
                 red_block[block_index] = red_val;
                 ir_block[block_index]  = ir_val;
                 block_index++;
-                
+
                 if(block_index >= BLOCK_SIZE) {
                     // Offline FIR convolution trên block của kênh Red
                     offline_fir_convolve(red_block, convolved_signal, BLOCK_SIZE);
-                    
+
                     // Với tốc độ mẫu 100Hz, refractory period là 600 ms tương đương 60 mẫu
                     beats = count_beats_in_convolved(convolved_signal, CONVOLVED_SIZE, SAMPLE_INTERVAL_MS/1000.0f, 60);
                     duration_sec = (BLOCK_DURATION_MS) / 1000.0f;  // 10 s
                     hr = (uint32_t)(((float)beats / duration_sec) * 60);
-                    
+
                     spo2_avg = compute_spo2_block(red_block, ir_block, BLOCK_SIZE);
-                    
+
                     // ESP_LOGI("RESULT", "Block (10s) -> HR: %d bpm, SpO2: %.1f%%, Beats: %d",
                     //             (int)hr, spo2_avg, beats);
                     // }else {
