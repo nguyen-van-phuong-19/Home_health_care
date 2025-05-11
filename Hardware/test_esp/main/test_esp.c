@@ -287,9 +287,8 @@ static void transmit_task(void *pv)
     float   motion;
 
     // Chọn chu kỳ gửi — ví dụ 1s
-    const TickType_t delay_ticks = pdMS_TO_TICKS((1000 * 60) + 10);
+    const TickType_t delay_ticks = pdMS_TO_TICKS((1000 * 60) + 1000);
 
-    vTaskDelay(delay_ticks);
     while (1) {
         // 1) Lấy đồng thời cả 3 giá trị (atomic dưới mutex)
         if (sensor_data_get_all(&hr, &spo2, &motion) != ESP_OK) {

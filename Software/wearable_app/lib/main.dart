@@ -60,7 +60,7 @@ class _BleInitializerState extends State<BleInitializer> {
   StreamSubscription<BluetoothConnectionState>? _connSub;
   late int hrLast;
   late int spo2Last;
-  late int motionLast;
+  late double motionLast;
 
   @override
   void initState() {
@@ -93,9 +93,13 @@ class _BleInitializerState extends State<BleInitializer> {
     final bd = ByteData.sublistView(Uint8List.fromList(data));
     final hr = bd.getUint8(0);
     final spo2 = bd.getUint8(1);
-    final motion = bd.getUint8(2);
+    final motion = bd.getFloat32(2, Endian.little);
 
     if (hr == hrLast && spo2 == spo2Last && motion == motionLast) {
+      return;
+    }
+
+    if (hr == 0 && spo2 == 0 && motion == 0) {
       return;
     }
 
@@ -122,7 +126,7 @@ class _BleInitializerState extends State<BleInitializer> {
   /// [motion] là số gia tốc
   ///
   /// Returns [Future<void>] là promise cho việc gửi dữ liệu
-  Future<void> _publishBleData(int hr, int spo2, int motion) async {
+  Future<void> _publishBleData(int hr, int spo2, double motion) async {
     // Lấy userId từ chỗ bạn lưu (ví dụ SharedPreferences, Auth service, v.v.)
     final String userId = await _getCurrentUserId();
 
@@ -142,7 +146,7 @@ class _BleInitializerState extends State<BleInitializer> {
     // 2.3 Tạo model AccelerometerTopic
     final accelTopic = AccelerometerTopic(
       userId: userId,
-      totalVector: motion.toDouble(),
+      totalVector: double.parse(motion.toStringAsFixed(2)),
       epochMinutes: epochMinutes,
     );
 

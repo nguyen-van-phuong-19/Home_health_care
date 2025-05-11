@@ -2,6 +2,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include "esp_log.h"
+#include <stdint.h>
 
 static const char *TAG = "SENSOR_DATA";
 
