@@ -100,22 +100,12 @@ esp_err_t mqtt_deinit(void) {
     return ESP_OK;
 }
 
-// --- Implementations of high-level publish helpers ---
-static void _get_timestamp(char* buf, size_t len) {
-    time_t now = time(NULL);
-    struct tm timeinfo;
-    localtime_r(&now, &timeinfo);
-    strftime(buf, len, "%Y-%m-%dT%H:%M:%S", &timeinfo);
-}
-
 esp_err_t mqtt_publish_heart_rate(const char* user_id,
                                    int bpm,
                                    float weight_kg,
                                    int age,
                                    int epoch_minutes) {
     char payload[256];
-    char ts[32];
-    _get_timestamp(ts, sizeof(ts));
     int len = snprintf(payload, sizeof(payload),
         "{\"user_id\":\"%s\",\"bpm\":%d,\"weight_kg\":%.1f,\"age\":%d,\"epoch_minutes\":%d}",
         user_id, bpm, weight_kg, age, epoch_minutes);
@@ -125,8 +115,6 @@ esp_err_t mqtt_publish_heart_rate(const char* user_id,
 esp_err_t mqtt_publish_spo2(const char* user_id,
                              float percentage) {
     char payload[128];
-    char ts[32];
-    _get_timestamp(ts, sizeof(ts));
     int len = snprintf(payload, sizeof(payload),
         "{\"user_id\":\"%s\",\"percentage\":%.1f}",
         user_id, percentage);
@@ -138,8 +126,6 @@ esp_err_t mqtt_publish_accelerometer(const char* user_id,
                                       float weight_kg,
                                       int epoch_minutes) {
     char payload[256];
-    char ts[32];
-    _get_timestamp(ts, sizeof(ts));
     int len = snprintf(payload, sizeof(payload),
         "{\"user_id\":\"%s\",\"total_vector\":%.2f,\"weight_kg\":%.1f,\"epoch_minutes\":%d}",
         user_id, total_vector, weight_kg, epoch_minutes);
@@ -151,8 +137,6 @@ esp_err_t mqtt_publish_gps(const char* user_id,
                             double longitude,
                             double altitude) {
     char payload[256];
-    char ts[32];
-    _get_timestamp(ts, sizeof(ts));
     int len = snprintf(payload, sizeof(payload),
         "{\"user_id\":\"%s\",\"latitude\":%.6f,\"longitude\":%.6f,\"altitude\":%.2f}",
         user_id, latitude, longitude, altitude);
