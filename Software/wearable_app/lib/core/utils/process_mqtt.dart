@@ -7,7 +7,6 @@ import 'package:mqtt_client/mqtt_client.dart';
 import 'package:wearable_app/models/topic_model.dart';
 import 'package:wearable_app/services/mqtt_service.dart';
 
-/// Callback typedefs for incoming messages
 typedef HeartRateListener = void Function(HeartRateTopic data);
 typedef Spo2Listener = void Function(Spo2Topic data);
 typedef AccelerometerListener = void Function(AccelerometerTopic data);
@@ -19,28 +18,23 @@ class ProcessMqttService {
 
   final MQTTService _mqtt = MQTTService();
 
-  /// Các listener tự gán từ bên ngoài
   HeartRateListener? onHeartRate;
   Spo2Listener? onSpo2;
   AccelerometerListener? onAccelerometer;
   GpsListener? onGps;
 
-  /// Khởi tạo MQTT, subscribe và lắng nghe message
   Future<void> initialize() async {
     // Kết nối
     await _mqtt.connect();
 
-    // Đăng ký topic
     _mqtt.subscribe(MQTTService.TOPIC_HEART_RATE, MqttQos.atLeastOnce);
     _mqtt.subscribe(MQTTService.TOPIC_SPO2, MqttQos.atLeastOnce);
     _mqtt.subscribe(MQTTService.TOPIC_ACCELEROMETER, MqttQos.atLeastOnce);
     _mqtt.subscribe(MQTTService.TOPIC_GPS, MqttQos.atLeastOnce);
 
-    // Lắng nghe tất cả message
     _mqtt.client?.updates?.listen(_onMessage);
   }
 
-  /// Xử lý message đến
   void _onMessage(List<MqttReceivedMessage<MqttMessage>> events) {
     for (final event in events) {
       final recMess = event.payload as MqttPublishMessage;
@@ -77,7 +71,6 @@ class ProcessMqttService {
     }
   }
 
-  /// Publish dữ liệu HeartRateTopic
   Future<void> sendHeartRate(HeartRateTopic data) async {
     _mqtt.publishJson(
       MQTTService.TOPIC_HEART_RATE,
@@ -86,7 +79,6 @@ class ProcessMqttService {
     );
   }
 
-  /// Publish dữ liệu Spo2Topic
   Future<void> sendSpO2(Spo2Topic data) async {
     _mqtt.publishJson(
       MQTTService.TOPIC_SPO2,
@@ -95,7 +87,6 @@ class ProcessMqttService {
     );
   }
 
-  /// Publish dữ liệu AccelerometerTopic
   Future<void> sendAccelerometer(AccelerometerTopic data) async {
     _mqtt.publishJson(
       MQTTService.TOPIC_ACCELEROMETER,
@@ -104,7 +95,6 @@ class ProcessMqttService {
     );
   }
 
-  /// Publish dữ liệu GpsTopic
   Future<void> sendGps(GpsTopic data) async {
     _mqtt.publishJson(
       MQTTService.TOPIC_GPS,
