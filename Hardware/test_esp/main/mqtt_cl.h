@@ -16,13 +16,14 @@ extern "C" {
 #include "mqtt_client.h"
 
 // --- MQTT topic definitions (must match server subscription) ---
-#define MQTT_TOPIC_HEART_RATE        "wearable/heart_rate"
-#define MQTT_TOPIC_SPO2              "wearable/spo2"
-#define MQTT_TOPIC_ACCELEROMETER     "wearable/accelerometer"
-#define MQTT_TOPIC_GPS               "wearable/gps"
+#define MQTT_TOPIC_HEART_RATE        "wearable_02420/heart_rate"
+#define MQTT_TOPIC_SPO2              "wearable_02420/spo2"
+#define MQTT_TOPIC_ACCELEROMETER     "wearable_02420/accelerometer"
+#define MQTT_TOPIC_GPS               "wearable_02420/gps"
 
 extern EventGroupHandle_t mqtt_event_group;
 extern const int MQTT_CONNECTED_BIT;
+extern const int MQTT_CLEANED_BIT;
 
 // Callback khi có message đến
 // topic, payload (không null-terminated), độ dài payload

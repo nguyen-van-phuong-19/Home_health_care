@@ -11,6 +11,8 @@
 #define MAX30102_TASK_STACK_SIZE    4096
 #define LIS2DH12_TASK_PRIORITY      5
 #define MAX30102_TASK_PRIORITY      5
+#define WIFI_WATCHDOG_TASK_PRIORITY 4
+#define TRANSMIT_TASK_PRIORITY      3
 
 static const char *TAG = "APP_MAIN";
 
@@ -108,7 +110,7 @@ void app_main(void)
         "wifi_watchdog",            // name
         WIFI_WD_STACK_SIZE,         // stack depth (words)
         NULL,                       // param
-        tskIDLE_PRIORITY + 1,       // priority
+        WIFI_WATCHDOG_TASK_PRIORITY,       // priority
         wifiWdStack,                // stack buffer
         &wifiWdTCB                  // TCB buffer
     );
@@ -118,7 +120,7 @@ void app_main(void)
         "transmit",
         4*1024,
         NULL,
-        configMAX_PRIORITIES - 2,  // ưu tiên cao hơn các task thu thập dữ liệu
+        TRANSMIT_TASK_PRIORITY,  // ưu tiên cao hơn các task thu thập dữ liệu
         NULL
     );
     if (r != pdPASS) {
@@ -174,7 +176,6 @@ static void max30102_task(void *arg)
                 block_index++;
 
                 if(block_index >= BLOCK_SIZE) {
-                    EventBits_t bits = xEventGroupGetBits(wifi_event_group);
                     // Offline FIR convolution trên block của kênh Red
                     offline_fir_convolve(red_block, convolved_signal, BLOCK_SIZE);
 
@@ -189,12 +190,6 @@ static void max30102_task(void *arg)
                                 (int)hr, spo2_avg, beats);
                     sensor_data_set_hr(hr);
                     sensor_data_set_spo2(spo2_avg);
-                    if ((bits & WIFI_CONNECTED_BIT) == 0){
-                    }else {
-                      if((xEventGroupGetBits(mqtt_event_group) & MQTT_CONNECTED_BIT) != 0){
-
-                      }
-                    }
                     // Reset index để block mới
                     block_index = 0;
                     for(int i = 0; i < BLOCK_SIZE; i++) {
@@ -221,7 +216,7 @@ static void wifi_watchdog_task(void *arg)
     EventGroupHandle_t eg = wifi_event_group;
     bool wifi_was_up   = true;
     bool ble_started   = false;
-    bool mqtt_up       = true;
+    bool mqtt_up       = false;
 
     for (;;) {
         EventBits_t bits = xEventGroupGetBits(eg);
@@ -250,6 +245,10 @@ static void wifi_watchdog_task(void *arg)
             }
 
         } else {
+            EventBits_t mqtt_bits = xEventGroupGetBits(mqtt_event_group);
+            if (mqtt_bits & MQTT_CONNECTED_BIT) {
+              mqtt_up       = false;
+            }
             // —— Wi-Fi UP ——
             if (!wifi_was_up) {
                 // lần đầu phát hiện lên lại, dọn BLE + khởi MQTT
@@ -258,7 +257,7 @@ static void wifi_watchdog_task(void *arg)
                     ESP_LOGI(TAG, "ble_deinit OK");
                 }
                 // Giả sử bạn muốn tự động tái-khởi MQTT:
-                if (mqtt_init("mqtt://broker.emqx.io", "client_id", NULL) == ESP_OK) {
+                if (mqtt_init("mqtt://broker.emqx.io:1883", "client_id", NULL) == ESP_OK) {
                     ESP_LOGI(TAG, "mqtt_init OK");
                 }
                 // reset flags
@@ -266,7 +265,7 @@ static void wifi_watchdog_task(void *arg)
                 wifi_was_up   = true;
                 mqtt_up      = true;
             } else if(!mqtt_up){
-                if (mqtt_init("mqtt://broker.emqx.io", "client_id", NULL) == ESP_OK) {
+                if (mqtt_init("mqtt://broker.emqx.io:1883", "client_id", NULL) == ESP_OK) {
                     ESP_LOGI(TAG, "mqtt_init OK");
                 }
                 mqtt_up      = true;
@@ -288,8 +287,9 @@ static void transmit_task(void *pv)
     float   motion;
 
     // Chọn chu kỳ gửi — ví dụ 1s
-    const TickType_t delay_ticks = pdMS_TO_TICKS(1000 * 60);
+    const TickType_t delay_ticks = pdMS_TO_TICKS((1000 * 60) + 10);
 
+    vTaskDelay(delay_ticks);
     while (1) {
         // 1) Lấy đồng thời cả 3 giá trị (atomic dưới mutex)
         if (sensor_data_get_all(&hr, &spo2, &motion) != ESP_OK) {

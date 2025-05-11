@@ -5,6 +5,7 @@ static const char *TAG = "wifi_pr";
 
 // Event group để chờ kết nối
 EventGroupHandle_t wifi_event_group;
+const int WIFI_CONNECTED_BIT = BIT0;
 static int retry_count;
 
 // Xử lý sự kiện Wi-Fi và IP

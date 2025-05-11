@@ -16,11 +16,12 @@ extern "C" {
 #include "esp_wifi.h"
 #include "esp_netif.h"
 
-#define WIFI_CONNECTED_BIT BIT0
+extern EventGroupHandle_t wifi_event_group;
+
+extern const int WIFI_CONNECTED_BIT;
 #define WIFI_MAX_RETRY     5
 
 // Biến event group được khởi tạo trong wifi_pr.c, có thể extern ra để test_esp.c sử dụng
-extern EventGroupHandle_t wifi_event_group;
 
 typedef void (*wifi_error_handler_t)(void);
 

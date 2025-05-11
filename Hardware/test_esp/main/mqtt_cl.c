@@ -1,6 +1,7 @@
 #include "mqtt_cl.h"
 #include "esp_err.h"
 #include <stdio.h>
+#include <string.h>
 #include <time.h>
 
 static const char *TAG = "MQTT_CL";
@@ -16,10 +17,10 @@ static esp_err_t _mqtt_event_handler_cb(esp_mqtt_event_handle_t event) {
         case MQTT_EVENT_CONNECTED:
             xEventGroupSetBits(mqtt_event_group, MQTT_CONNECTED_BIT);
             ESP_LOGI(TAG, "MQTT connected");
-            ESP_ERROR_CHECK(mqtt_subscribe_topic(MQTT_TOPIC_HEART_RATE, 0));
-            ESP_ERROR_CHECK(mqtt_subscribe_topic(MQTT_TOPIC_SPO2, 0));
-            ESP_ERROR_CHECK(mqtt_subscribe_topic(MQTT_TOPIC_ACCELEROMETER, 0));
-            ESP_ERROR_CHECK(mqtt_subscribe_topic(MQTT_TOPIC_GPS, 0));
+            mqtt_subscribe_topic(MQTT_TOPIC_HEART_RATE, 0);
+            mqtt_subscribe_topic(MQTT_TOPIC_SPO2, 0);
+            mqtt_subscribe_topic(MQTT_TOPIC_ACCELEROMETER, 0);
+            mqtt_subscribe_topic(MQTT_TOPIC_GPS, 0);
             break;
         case MQTT_EVENT_DISCONNECTED:
             xEventGroupClearBits(mqtt_event_group, MQTT_CONNECTED_BIT);
@@ -58,7 +59,6 @@ esp_err_t mqtt_init(const char *uri, const char *client_id, mqtt_msg_cb_t msg_cb
     esp_mqtt_client_config_t cfg;
     memset(&cfg, 0, sizeof(cfg));
     cfg.broker.address.uri    = uri;
-    cfg.broker.address.port = 1883;
     cfg.credentials.client_id = client_id;
 
     client = esp_mqtt_client_init(&cfg);
@@ -86,6 +86,7 @@ esp_err_t mqtt_publish_message(const char *topic,
 esp_err_t mqtt_subscribe_topic(const char *topic, int qos) {
     if (!client) return ESP_ERR_INVALID_STATE;
     int msg_id = esp_mqtt_client_subscribe(client, topic, qos);
+    ESP_LOGE(TAG, "msg_id: %d", msg_id);
     return (msg_id < 0) ? ESP_FAIL : ESP_OK;
 }
 
@@ -116,8 +117,8 @@ esp_err_t mqtt_publish_heart_rate(const char* user_id,
     char ts[32];
     _get_timestamp(ts, sizeof(ts));
     int len = snprintf(payload, sizeof(payload),
-        "{\"user_id\":\"%s\",\"timestamp\":\"%s\",\"bpm\":%d,\"weight_kg\":%.1f,\"age\":%d,\"epoch_minutes\":%d}",
-        user_id, ts, bpm, weight_kg, age, epoch_minutes);
+        "{\"user_id\":\"%s\",\"bpm\":%d,\"weight_kg\":%.1f,\"age\":%d,\"epoch_minutes\":%d}",
+        user_id, bpm, weight_kg, age, epoch_minutes);
     return mqtt_publish_message(MQTT_TOPIC_HEART_RATE, payload, len, 1, false);
 }
 
@@ -127,8 +128,8 @@ esp_err_t mqtt_publish_spo2(const char* user_id,
     char ts[32];
     _get_timestamp(ts, sizeof(ts));
     int len = snprintf(payload, sizeof(payload),
-        "{\"user_id\":\"%s\",\"timestamp\":\"%s\",\"percentage\":%.1f}",
-        user_id, ts, percentage);
+        "{\"user_id\":\"%s\",\"percentage\":%.1f}",
+        user_id, percentage);
     return mqtt_publish_message(MQTT_TOPIC_SPO2, payload, len, 1, false);
 }
 
@@ -140,8 +141,8 @@ esp_err_t mqtt_publish_accelerometer(const char* user_id,
     char ts[32];
     _get_timestamp(ts, sizeof(ts));
     int len = snprintf(payload, sizeof(payload),
-        "{\"user_id\":\"%s\",\"timestamp\":\"%s\",\"total_vector\":%.2f,\"weight_kg\":%.1f,\"epoch_minutes\":%d}",
-        user_id, ts, total_vector, weight_kg, epoch_minutes);
+        "{\"user_id\":\"%s\",\"total_vector\":%.2f,\"weight_kg\":%.1f,\"epoch_minutes\":%d}",
+        user_id, total_vector, weight_kg, epoch_minutes);
     return mqtt_publish_message(MQTT_TOPIC_ACCELEROMETER, payload, len, 1, false);
 }
 
@@ -153,8 +154,8 @@ esp_err_t mqtt_publish_gps(const char* user_id,
     char ts[32];
     _get_timestamp(ts, sizeof(ts));
     int len = snprintf(payload, sizeof(payload),
-        "{\"user_id\":\"%s\",\"timestamp\":\"%s\",\"latitude\":%.6f,\"longitude\":%.6f,\"altitude\":%.2f}",
-        user_id, ts, latitude, longitude, altitude);
+        "{\"user_id\":\"%s\",\"latitude\":%.6f,\"longitude\":%.6f,\"altitude\":%.2f}",
+        user_id, latitude, longitude, altitude);
     return mqtt_publish_message(MQTT_TOPIC_GPS, payload, len, 1, false);
 }
 
