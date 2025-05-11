@@ -12,17 +12,11 @@ import 'package:wearable_app/screens/home_screen/home_screen.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Khởi tạo Firebase
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  // Khởi tạo và kết nối MQTT broker
   await MQTTService().init();
   await MQTTService().connect();
 
-  // Bắt đầu chia sẻ vị trí định kỳ (nếu cần)
-  await LocationPublisher.instance.startPeriodic('user123', intervalMinutes: 1);
-
-  // Gọi runApp ngay để UI hiển thị nhanh, kết nối BLE trong widget
   runApp(MyApp());
 }
 
@@ -62,14 +56,15 @@ class BleInitializer extends StatefulWidget {
 
 class _BleInitializerState extends State<BleInitializer> {
   StreamSubscription<BluetoothConnectionState>? _connSub;
+  late bool _isBle;
 
   @override
   void initState() {
     super.initState();
+    _isBle = false;
     _listenScan();
   }
 
-  /// Lắng nghe sự kiện scan và kết nối với thiết bị
   Future<void> _listenScan() async {
     FlutterBluePlus.scanResults.listen((results) {
       for (final r in results) {
@@ -79,13 +74,25 @@ class _BleInitializerState extends State<BleInitializer> {
     await FlutterBluePlus.startScan(
       androidScanMode: AndroidScanMode.lowLatency,
     );
+
+    if (_isBle) {
+      await LocationPublisher.instance.startPeriodic(
+        'user123',
+        intervalMinutes: 1,
+      );
+    }
   }
 
   void handleScanResult(ScanResult r) {
     final m = r.advertisementData.manufacturerData;
     // Key là Company ID (0xABCD)
     final data = m[0xABCD];
-    if (data == null || data.length < 6) return;
+    if (data == null || data.length < 6) {
+      setState(() {
+        _isBle = false;
+      });
+      return;
+    }
 
     final bd = ByteData.sublistView(Uint8List.fromList(data));
     final hr = bd.getUint8(0);
@@ -93,6 +100,9 @@ class _BleInitializerState extends State<BleInitializer> {
     final motion = bd.getFloat32(2, Endian.little);
 
     print('HR: $hr, SpO2: $spo2, Motion: ${motion.toStringAsFixed(2)}');
+    setState(() {
+      _isBle = true;
+    });
   }
 
   @override

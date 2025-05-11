@@ -22,7 +22,7 @@ extern "C" {
 #include "esp_nimble_hci.h"
 #include "nimble/nimble_port_freertos.h"
 #include "host/ble_hs.h"
-#include "sensor_data.h"
+#include "esp_system.h"
 
 
 // I2C configuration cho ESP32-S3-N16R8 (sử dụng chân phù hợp với board của bạn)

@@ -1,10 +1,9 @@
-idf_component_register(SRCS "test_esp.c"
+idf_component_register(SRCS "main_hardware.c"
                     "main.c"
                     "LIS2DH12TR.c"
                     "wifi_pr.c"
                     "ble_fc.c"
                     "mqtt_cl.c"
-                    "sensor_data.c"
                     INCLUDE_DIRS "."
                     REQUIRES bt                  # <— pull in esp_bt_main.h and friends
                         driver

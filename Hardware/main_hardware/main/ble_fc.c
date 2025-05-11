@@ -1,6 +1,6 @@
 // File: ble_fc.c
 
-#include "esp_err.h"
+#include "ble_fc.h"
 #include "esp_log.h"
 #include "nvs_flash.h"
 #include "nimble/nimble_port.h"
@@ -17,8 +17,6 @@ static const char *TAG = "BLE_FC";
     0x78,0x56,0x34,0x12, \
     0x34,0x12,0x78,0x56, \
     0x34,0x12,0x56,0x78
-
-
 static ble_uuid128_t svc_uuid128 = BLE_UUID128_INIT(SVC_UUID_BYTES);
 static const ble_uuid128_t *adv_uuids128[] = { &svc_uuid128 };
 
@@ -105,12 +103,11 @@ static void ble_app_task(void *param) {
 }
 
 // Initialize BLE: NVS, NimBLE port, callbacks, task
-esp_err_t ble_app_init(void) {
+void ble_app_init(void) {
     esp_err_t err = nvs_flash_init();
     if (err == ESP_ERR_NVS_NO_FREE_PAGES || err == ESP_ERR_NVS_NEW_VERSION_FOUND) {
         ESP_ERROR_CHECK(nvs_flash_erase());
         err = nvs_flash_init();
-        return err;
     }
     ESP_ERROR_CHECK(err);
 
@@ -118,11 +115,10 @@ esp_err_t ble_app_init(void) {
     ble_hs_cfg.reset_cb = ble_on_reset;
     ble_hs_cfg.sync_cb  = ble_on_sync;
     nimble_port_freertos_init(ble_app_task);
-    return ESP_OK;
 }
 
 // Update manufacturer data payload dynamically
-esp_err_t update_service_data(const uint8_t *data, uint8_t len) {
+void update_service_data(const uint8_t *data, uint8_t len) {
     if (len > MFG_PAYLOAD_MAX) {
         len = MFG_PAYLOAD_MAX;
     }
@@ -135,11 +131,9 @@ esp_err_t update_service_data(const uint8_t *data, uint8_t len) {
     int rc = ble_gap_adv_rsp_set_fields(&rsp_fields);
     if (rc) {
         ESP_LOGE(TAG, "update_service_data error: %d", rc);
-        return rc;
     } else {
         ESP_LOGI(TAG, "Manufacturer Data updated len=%d", len);
     }
-    return ESP_OK;
 }
 
 void send_sensor_data(uint8_t hr, uint8_t spo2, float motion) {
@@ -150,46 +144,4 @@ void send_sensor_data(uint8_t hr, uint8_t spo2, float motion) {
 
     // gọi hàm update_service_data đã có để up payload
     update_service_data(buf, sizeof(buf));
-}
-
-
-esp_err_t ble_deinit(void) {
-    int rc;
-    esp_err_t err;
-
-    // 1) Stop advertising
-    rc = ble_gap_adv_stop();
-    if (rc) {
-        ESP_LOGE(TAG, "ble_gap_adv_stop() failed; rc=%d", rc);
-        return rc;
-    } else {
-        ESP_LOGI(TAG, "Advertising stopped");
-    }
-
-    // 2) Stop the NimBLE host thread
-    rc = nimble_port_stop();
-    if (rc) {
-        ESP_LOGE(TAG, "nimble_port_stop() failed; rc=%d", rc);
-        return rc;
-    } else {
-        ESP_LOGI(TAG, "NimBLE host stopped");
-    }
-
-    // 3) Deinitialize FreeRTOS task if bạn dùng nimble_port_freertos_init()
-    nimble_port_freertos_deinit();
-    ESP_LOGI(TAG, "NimBLE FreeRTOS deinitialized");
-
-    // 4) Deinitialize NimBLE port (bao gồm cả controller/VHCI deinit)
-    nimble_port_deinit();
-    ESP_LOGI(TAG, "NimBLE port deinitialized");
-
-    // 5) (Tùy chọn) Deinit NVS nếu bạn đã init nó trong ble_app_init()
-    err = nvs_flash_deinit();
-    if (err != ESP_OK) {
-        ESP_LOGE(TAG, "nvs_flash_deinit() failed; err=0x%x", err);
-        return err;
-    } else {
-        ESP_LOGI(TAG, "NVS flash deinitialized");
-    }
-    return ESP_OK;
 }

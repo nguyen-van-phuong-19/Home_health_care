@@ -1,5 +1,4 @@
 #include "mqtt_cl.h"
-#include "esp_err.h"
 #include <stdio.h>
 #include <time.h>
 
@@ -16,10 +15,6 @@ static esp_err_t _mqtt_event_handler_cb(esp_mqtt_event_handle_t event) {
         case MQTT_EVENT_CONNECTED:
             xEventGroupSetBits(mqtt_event_group, MQTT_CONNECTED_BIT);
             ESP_LOGI(TAG, "MQTT connected");
-            ESP_ERROR_CHECK(mqtt_subscribe_topic(MQTT_TOPIC_HEART_RATE, 0));
-            ESP_ERROR_CHECK(mqtt_subscribe_topic(MQTT_TOPIC_SPO2, 0));
-            ESP_ERROR_CHECK(mqtt_subscribe_topic(MQTT_TOPIC_ACCELEROMETER, 0));
-            ESP_ERROR_CHECK(mqtt_subscribe_topic(MQTT_TOPIC_GPS, 0));
             break;
         case MQTT_EVENT_DISCONNECTED:
             xEventGroupClearBits(mqtt_event_group, MQTT_CONNECTED_BIT);
@@ -58,7 +53,6 @@ esp_err_t mqtt_init(const char *uri, const char *client_id, mqtt_msg_cb_t msg_cb
     esp_mqtt_client_config_t cfg;
     memset(&cfg, 0, sizeof(cfg));
     cfg.broker.address.uri    = uri;
-    cfg.broker.address.port = 1883;
     cfg.credentials.client_id = client_id;
 
     client = esp_mqtt_client_init(&cfg);

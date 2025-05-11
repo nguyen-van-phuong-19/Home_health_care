@@ -6,9 +6,7 @@ import 'package:wearable_app/core/utils/process_mqtt.dart';
 import 'package:wearable_app/services/ble_service.dart';
 import 'package:wearable_app/models/topic_model.dart';
 
-/// Nhận dữ liệu BLE từ ESP32-S3, giải mã JSON, chuyển ngữ nghĩa và gửi lên MQTT
 class ProcessBleDataService {
-  // UUID của Service và các Characteristic tương ứng (theo ble_fc.c)
   final Guid serviceUuid = Guid('9ABCDEF0-5678-1234-3412-785634125678');
   final Guid hrCharUuid = Guid('9ABCDEF1-5678-1234-3412-785634125678');
   final Guid spo2CharUuid = Guid('9ABCDEF2-5678-1234-3412-785634125678');
@@ -18,7 +16,6 @@ class ProcessBleDataService {
   final BleService _ble = BleService();
   final ProcessMqttService _mqtt = ProcessMqttService.instance;
 
-  /// Khởi chạy listener cho cả 4 characteristic
   void startProcessing() {
     print("start listening-----------------------------------");
     _listenHeartRate();
@@ -41,9 +38,7 @@ class ProcessBleDataService {
           bpm: map['bpm'] as int,
         );
         _mqtt.sendHeartRate(hr);
-      } catch (e) {
-        // TODO: Thay print bằng logging nếu cần
-      }
+      } catch (e) {}
     });
   }
 
@@ -61,9 +56,7 @@ class ProcessBleDataService {
           percentage: (map['percentage'] as num).toDouble(),
         );
         _mqtt.sendSpO2(spo2);
-      } catch (e) {
-        // TODO: Thay print bằng logging nếu cần
-      }
+      } catch (e) {}
     });
   }
 
