@@ -5,6 +5,7 @@ idf_component_register(SRCS "test_esp.c"
                     "ble_fc.c"
                     "mqtt_cl.c"
                     "sensor_data.c"
+                    "l80r_process.c"
                     INCLUDE_DIRS "."
                     REQUIRES bt                  # <— pull in esp_bt_main.h and friends
                         driver

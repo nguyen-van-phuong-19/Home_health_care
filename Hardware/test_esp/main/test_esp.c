@@ -1,6 +1,7 @@
 #include "esp_err.h"
 #include "freertos/idf_additions.h"
 #include "main.h"
+#include "l80r_process.h"
 #include "sensor_data.h"
 #include <stdbool.h>
 // #include "ble_store.h"
@@ -44,7 +45,7 @@ static float vector_sum = 0.0f;
 
 void app_main(void)
 {
-    wifi_init_sta("P101", "88888888");
+    wifi_init_sta("102", "11111111");
 
     // 2) Khởi tạo LIS2DH12TR
     ESP_ERROR_CHECK(i2c_master_init());
@@ -59,30 +60,6 @@ void app_main(void)
 
     ESP_ERROR_CHECK(sensor_data_init());
 
-
-    // ble_app_init();
-
-    // // Giả sử đọc cảm biến lần đầu:
-    // send_sensor_data(75, 98, 1.23f);
-    // while (1) {
-    //     vTaskDelay(pdMS_TO_TICKS(1000));
-    // Sau đó mỗi 5s cập nhật lại:
-    // for (;;) {
-    //   vTaskDelay(pdMS_TO_TICKS(1000 * 60));
-    //   send_sensor_data(hr++, spo2, motion++);
-    // }
-    //     switch (ble_get_state()) {
-    //     case BLE_STATE_DISCONNECTED:
-    //         printf("BLE: disconnected\n");
-    //         break;
-    //     case BLE_STATE_ADVERTISING:
-    //         printf("BLE: advertising\n");
-    //         break;
-    //     case BLE_STATE_CONNECTED:
-    //         printf("BLE: connected (handle=%d)\n", ble_get_conn_handle());
-    //         break;
-    //     }
-    // }
     BaseType_t r;
 
     xTaskCreateStatic(
