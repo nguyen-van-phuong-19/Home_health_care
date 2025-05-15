@@ -60,12 +60,20 @@ def update_spo2(user_id: str, timestamp: str, percentage: float) -> None:
     get_reference(path).set({'percentage': percentage})
 
 
-def update_latest_spo2(user_id: str, percentage: float) -> None:
+def update_latest_in4_hr(user_id: str, bpm: float) -> None:
     """
     Update the latest SpO2 value.
     """
-    path = f"users/{user_id}/latest_spo2"
-    get_reference(path).set({'percentage': percentage})
+    path = f"users/{user_id}/latest_in4/bpm"
+    get_reference(path).set(bpm)
+
+
+def update_latest_in4_spo2(user_id: str, percentage: float) -> None:
+    """
+    Update the latest SpO2 value.
+    """
+    path = f"users/{user_id}/latest_in4/percentage"
+    get_reference(path).set(percentage)
 
 
 def update_gps(user_id: str, timestamp: str, latitude: float, longitude: float, altitude: float) -> None:
@@ -157,7 +165,7 @@ if __name__ == '__main__':
 
     # Example writes
     update_heart_rate('user123', '2025-04-22T18:00:00', 72.0)
-    update_latest_spo2('user123', 98.2)
+    update_latest_in4('user123', 98.2, 72)
     update_gps('user123', '2025-04-22T18:00:00', 21.0278, 105.8342, 12.0)
     update_latest_location('user123', 21.0278, 105.8342, 12.0, '2025-04-22T18:00:00')
     update_sleep_record('user123', '2025-04-21T22:00:00', '2025-04-22T06:00:00', 8.0)

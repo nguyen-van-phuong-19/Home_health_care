@@ -9,55 +9,53 @@ extern "C" {
 
 #include "driver/uart.h"
 #include "driver/gpio.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/semphr.h"
+
 #include <stdint.h>
 
-
-// UART instance and pins for L80-R
+// UART và chân kết nối cho module L80-R
 #define L80R_UART_NUM      UART_NUM_1
 #define L80R_UART_TX_PIN   (GPIO_NUM_4)
 #define L80R_UART_RX_PIN   (GPIO_NUM_5)
 #define L80R_UART_BAUDRATE 9600
-
-// Max NMEA line length
 #define L80R_MAX_LINE      128
 
-// Parsed GNSS data structure
+// Cấu trúc lưu trữ dữ liệu GNSS đã parse
 typedef struct {
-    char utc_time[16];       // hhmmss.ss string
-    double latitude;         // decimal degrees
-    double longitude;        // decimal degrees
-    int    fix_quality;      // 0 = invalid, 1 = GPS fix, etc.
-    int    num_satellites;   // satellites in view
-    double hdop;             // Horizontal dilution of precision
-    double altitude;         // meters above mean sea level
+    char   utc_time[16];      // "hhmmss.ss"
+    double latitude;          // độ thập phân
+    double longitude;         // độ thập phân
+    int    fix_quality;       // 0=invalid,1=GPS fix...
+    int    num_satellites;    // số vệ tinh
+    double hdop;              // độ chính xác ngang
+    double altitude;          // độ cao (m)
 } l80r_data_t;
 
 /**
- * @brief Initialize UART and mutex for L80-R module
+ * @brief Khởi tạo UART và mutex cho L80-R
  */
 void l80r_init(void);
 
 /**
- * @brief Task to read and process NMEA from L80-R
- * @param arg Unused
+ * @brief Task đọc dữ liệu NMEA từ L80-R và parse
+ * @param arg Không sử dụng
  */
 void l80r_task(void *arg);
 
 /**
- * @brief Parse a single NMEA sentence and update internal data
- * @param nmea Null-terminated NMEA sentence
+ * @brief Parse câu NMEA GGA và cập nhật dữ liệu nội bộ
+ * @param nmea Chuỗi NMEA kết thúc '\0'
  */
 void l80r_parse_nmea(const char *nmea);
 
 /**
- * @brief Set GNSS data manually (thread-safe)
- * @param new_data Pointer to new data to copy
+ * @brief Ghi đè dữ liệu GNSS (thread-safe)
  */
 void l80r_set_data(const l80r_data_t *new_data);
 
 /**
- * @brief Get current GNSS data (thread-safe)
- * @param out_data Pointer to user buffer to receive copy
+ * @brief Lấy dữ liệu GNSS hiện tại (thread-safe)
  */
 void l80r_get_data(l80r_data_t *out_data);
 

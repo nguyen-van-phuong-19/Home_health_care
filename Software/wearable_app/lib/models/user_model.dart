@@ -44,7 +44,7 @@ class UserModel {
           ) ??
           {},
       latestSpO2: LatestSpO2.fromJson(
-        json['latest_spo2'] as Map<String, dynamic>? ?? {},
+        json['latest_in4'] as Map<String, dynamic>? ?? {},
       ),
       caloriesByAccelerometer:
           (json['calorise_by_accelerometer'] as Map<String, dynamic>?)?.map(

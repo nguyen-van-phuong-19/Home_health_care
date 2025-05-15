@@ -46,15 +46,17 @@ def on_message(client, userdata, msg):
     payload = json.loads(msg.payload.decode())
     user_id = payload.get("user_id", "user123")
     topic = msg.topic
+    last_bpm = 0;
     timestamp = payload.get(
         "timestamp",
         datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
     )
 
-    # print(f"Received message on topic {topic}: {payload}")
+    print(f"Received message on topic {topic}: {payload}")
 
     if topic == topics.TOPIC_HEART_RATE:
         bpm = payload.get("bpm", 0)
+        last_bpm = bpm
         # store heart rate
         service.add_heart_rate(user_id, timestamp, bpm)
 
@@ -80,8 +82,8 @@ def on_message(client, userdata, msg):
             )
 
         # calories by heart rate
-        weight = payload.get("weight_kg", 70)
-        age = payload.get("age", 30)
+        weight = payload.get("weight_kg", 75)
+        age = payload.get("age", 23)
         epoch_min = payload.get("epoch_minutes", 1)
         cal_per_min = (
             -55.0969 + 0.6309 * bpm + 0.1988 * weight + 0.2017 * age
@@ -90,6 +92,7 @@ def on_message(client, userdata, msg):
         cal_burned = cal_per_min * epoch_min
         today = datetime.fromisoformat(timestamp).strftime("%Y-%m-%d")
         service.add_calories_by_hr(user_id, today, bpm, cal_burned)
+        service.set_latest_in4_hr(user_id, bpm)
 
         # after accelerometer processed too, combine daily calories
         # leave combine step to message ordering or implement separately
@@ -97,7 +100,7 @@ def on_message(client, userdata, msg):
     elif topic == topics.TOPIC_SPO2:
         spo2 = payload.get("percentage", 0)
         service.add_spo2(user_id, timestamp, spo2)
-        service.set_latest_spo2(user_id, spo2)
+        service.set_latest_in4_spo2(user_id, spo2)
 
     elif topic == topics.TOPIC_ACCELEROMETER:
         total_vector = payload.get("total_vector")

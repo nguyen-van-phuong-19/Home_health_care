@@ -6,7 +6,8 @@ from db.firebase_manager import (
     get_user_data,
     update_heart_rate,
     update_spo2,
-    update_latest_spo2,
+    update_latest_in4_spo2,
+    update_latest_in4_hr,
     update_gps,
     update_latest_location,
     update_calories_by_heart_rate,
@@ -96,8 +97,11 @@ class BaseService:
     def add_spo2(self, user_id: str, timestamp: str, percentage: float) -> None:
         update_spo2(user_id, timestamp, percentage)
 
-    def set_latest_spo2(self, user_id: str, percentage: float) -> None:
-        update_latest_spo2(user_id, percentage)
+    def set_latest_in4_spo2(self, user_id: str, percentage: float) -> None:
+        update_latest_in4_spo2(user_id, percentage)
+
+    def set_latest_in4_hr(self, user_id: str, bpm: float) -> None:
+        update_latest_in4_hr(user_id, bpm)
 
     def add_gps(self, user_id: str, timestamp: str, latitude: float, longitude: float, altitude: float) -> None:
         update_gps(user_id, timestamp, latitude, longitude, altitude)

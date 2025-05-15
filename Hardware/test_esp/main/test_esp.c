@@ -2,6 +2,7 @@
 #include "freertos/idf_additions.h"
 #include "main.h"
 #include "l80r_process.h"
+#include "mqtt_cl.h"
 #include "sensor_data.h"
 #include <stdbool.h>
 // #include "ble_store.h"
@@ -12,7 +13,7 @@
 #define MAX30102_TASK_STACK_SIZE    4096
 #define LIS2DH12_TASK_PRIORITY      5
 #define MAX30102_TASK_PRIORITY      5
-#define WIFI_WATCHDOG_TASK_PRIORITY 4
+#define WIFI_WATCHDOG_TASK_PRIORITY 12
 #define TRANSMIT_TASK_PRIORITY      3
 
 static const char *TAG = "APP_MAIN";
@@ -29,7 +30,6 @@ static StackType_t  max30102_stack[MAX30102_TASK_STACK_SIZE];
 static StaticTask_t   wifiWdTCB;
 static StackType_t    wifiWdStack[WIFI_WD_STACK_SIZE];
 
-static SemaphoreHandle_t mqtt_mutex = NULL;
 
 static void lis2dh12_task(void *arg);
 static void max30102_task(void *arg);
@@ -53,9 +53,9 @@ void app_main(void)
     ESP_ERROR_CHECK(max30102_init());
     ESP_LOGI("MAIN", "I2C initialized");
 
+    l80r_init();
     // // Create I2C mutex (with priority inheritance)
     i2c_mutex = xSemaphoreCreateMutex();
-    mqtt_mutex = xSemaphoreCreateMutex();
     configASSERT(i2c_mutex);
 
     ESP_ERROR_CHECK(sensor_data_init());
@@ -103,6 +103,8 @@ void app_main(void)
     if (r != pdPASS) {
         ESP_LOGE(TAG, "Failed to create transmit_task");
     }
+
+    xTaskCreate(l80r_task, "l80r_task", 4096, NULL, 5, NULL);
 
 }
 
@@ -222,9 +224,12 @@ static void wifi_watchdog_task(void *arg)
             }
 
         } else {
-            EventBits_t mqtt_bits = xEventGroupGetBits(mqtt_event_group);
-            if (mqtt_bits & MQTT_CONNECTED_BIT) {
-              mqtt_up       = false;
+            if (mqtt_up) {
+              EventBits_t mqtt_bits = xEventGroupGetBits(mqtt_event_group);
+              if (mqtt_bits & MQTT_CONNECTED_BIT) {
+                ESP_LOGW(TAG, "WiFi OK but MQTT not connected");
+                mqtt_up       = false;
+              }
             }
             // —— Wi-Fi UP ——
             if (!wifi_was_up) {
@@ -282,6 +287,8 @@ static void transmit_task(void *pv)
             if (mqtt_bits & MQTT_CONNECTED_BIT) {
                 // Gửi qua MQTT
                 // Nếu bạn đã có các hàm publish riêng, gọi trực tiếp
+                // l80r_data_t current;
+                // l80r_get_data(&current);
                 esp_err_t err;
                 err = mqtt_publish_heart_rate("user123",hr,75,23, 1);
                 if (err != ESP_OK) {
@@ -295,6 +302,10 @@ static void transmit_task(void *pv)
                 if (err != ESP_OK) {
                     ESP_LOGW(TAG, "MQTT Motion publish failed: %s", esp_err_to_name(err));
                 }
+                // err = mqtt_publish_gps("user123", current.latitude, current.longitude, current.altitude);
+                // if(err != ESP_OK){
+                //     ESP_LOGW(TAG, "MQTT GPS publish failed: %s", esp_err_to_name(err));
+                // }
             } else {
                 ESP_LOGW(TAG, "WiFi OK but MQTT not connected");
                 // Có thể trigger reconnect hoặc log, tuỳ bạn
