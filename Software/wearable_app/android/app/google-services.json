@@ -13,7 +13,20 @@
           "package_name": "com.example.wearable_app"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "672419730697-u2fvuei2ufi0drdg0294jnpfusfkft5m.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.wearable_app",
+            "certificate_hash": "b3b46fec6daf3f1ae0cbc89738750bda64776623"
+          }
+        },
+        {
+          "client_id": "672419730697-hae1824e9pluuqfd6p1um41128q85ode.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyC_3-daB5E16hiYrdlJAFITMoVvYg0cEoc"
@@ -21,7 +34,19 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "672419730697-hae1824e9pluuqfd6p1um41128q85ode.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "672419730697-jsn5v0pq631jr0151gf0099uaibq7c51.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.wearableApp"
+              }
+            }
+          ]
         }
       }
     }

@@ -1,15 +1,32 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:wearable_app/core/config/firebase_options.dart';
 import 'package:wearable_app/core/utils/process_mqtt.dart';
 import 'package:wearable_app/models/topic_model.dart';
+import 'package:wearable_app/screens/authentication_wrapper.dart';
 import 'package:wearable_app/services/location_publisher.dart';
 import 'package:wearable_app/services/mqtt_service.dart';
-import 'package:wearable_app/screens/home_screen/home_screen.dart';
+import 'package:firebase_ui_localizations/firebase_ui_localizations.dart';
+
+Future<String> _loadGoogleWebClientId() async {
+  final raw = await rootBundle.loadString('android/app/google-services.json');
+  final json = jsonDecode(raw) as Map<String, dynamic>;
+
+  // tìm oauth_client có client_type = 3 (Web)
+  final clients =
+      (json['client'] as List)
+          .expand((c) => (c['oauth_client'] as List))
+          .cast<Map<String, dynamic>>();
+  final web = clients.firstWhere((c) => c['client_type'] == 3);
+  return web['client_id'] as String;
+}
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -18,12 +35,13 @@ Future<void> main() async {
 
   await MQTTService().init();
   await MQTTService().connect();
-
-  runApp(MyApp());
+  final webId = await _loadGoogleWebClientId();
+  runApp(MyApp(googleClientId: webId));
 }
 
 class MyApp extends StatefulWidget {
-  const MyApp({super.key});
+  final String googleClientId;
+  const MyApp({super.key, required this.googleClientId});
 
   @override
   State<MyApp> createState() => _MyAppState();
@@ -34,12 +52,18 @@ class _MyAppState extends State<MyApp> {
   Widget build(BuildContext context) {
     return BleInitializer(
       child: MaterialApp(
+        localizationsDelegates: [
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          FirebaseUILocalizations.delegate, // thêm delegate cho Firebase UI
+        ],
+        supportedLocales: [Locale('vi'), Locale('en')],
         title: 'Health Tracker',
         theme: ThemeData(
           primarySwatch: Colors.green,
           scaffoldBackgroundColor: const Color(0xFFF7FFF0),
         ),
-        home: HomeScreen(),
+        home: AuthenticationWrapper(googleClientId: widget.googleClientId),
         debugShowCheckedModeBanner: false,
       ),
     );

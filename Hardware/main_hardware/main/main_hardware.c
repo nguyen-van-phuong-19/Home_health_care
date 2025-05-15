@@ -44,8 +44,8 @@ void app_main(void)
     // int count = 0;
 
     // 2) Khởi tạo LIS2DH12TR
-    // ESP_ERROR_CHECK(i2c_master_init());
-    // ESP_ERROR_CHECK(lis2dh12_init());
+    ESP_ERROR_CHECK(i2c_master_init());
+    ESP_ERROR_CHECK(lis2dh12_init());
     // ESP_ERROR_CHECK(max30102_init());
     // ESP_LOGI("MAIN", "I2C initialized");
 
@@ -53,11 +53,11 @@ void app_main(void)
     // i2c_mutex = xSemaphoreCreateMutex();
     // mqtt_mutex = xSemaphoreCreateMutex();
     // configASSERT(i2c_mutex);
-    uint8_t hr    = 70;        // hàm của bạn
-    uint8_t spo2  = 97;              // hàm của bạn
-    float   motion= 3832.45f;// hàm của bạn
+    // uint8_t hr    = 70;        // hàm của bạn
+    // uint8_t spo2  = 97;              // hàm của bạn
+    // float   motion= 3832.45f;// hàm của bạn
 
-    ble_app_init();
+    // ble_app_init();
 
     // // Giả sử đọc cảm biến lần đầu:
     // send_sensor_data(75, 98, 1.23f);
@@ -69,10 +69,10 @@ void app_main(void)
     //       esp_restart();
     //     }
     // }
-    for (;;) {
-      vTaskDelay(pdMS_TO_TICKS(1000 * 30));
-      send_sensor_data(hr++, spo2, motion++);
-    }
+    // for (;;) {
+    //   vTaskDelay(pdMS_TO_TICKS(1000 * 30));
+    //   send_sensor_data(hr++, spo2, motion++);
+    // }
     //     switch (ble_get_state()) {
     //     case BLE_STATE_DISCONNECTED:
     //         printf("BLE: disconnected\n");
@@ -85,15 +85,15 @@ void app_main(void)
     //         break;
     //     }
     // }
-    // xTaskCreateStatic(
-    //     lis2dh12_task,      // hàm task
-    //     "lis2dh12_task",    // tên task
-    //     LIS2DH12_TASK_STACK_SIZE,               // stack size (bytes)
-    //     NULL,               // tham số truyền vào
-    //     LIS2DH12_TASK_PRIORITY,
-    //     lis2dh12_stack,
-    //     &lis2dh12_tcb
-    // );
+    xTaskCreateStatic(
+        lis2dh12_task,      // hàm task
+        "lis2dh12_task",    // tên task
+        LIS2DH12_TASK_STACK_SIZE,               // stack size (bytes)
+        NULL,               // tham số truyền vào
+        LIS2DH12_TASK_PRIORITY,
+        lis2dh12_stack,
+        &lis2dh12_tcb
+    );
 
     // xTaskCreateStatic(
     //     max30102_task,      // hàm task
@@ -127,8 +127,8 @@ static void lis2dh12_task(void *arg)
             if (lis2dh12_get_vector(&acc) == ESP_OK) {
                 vector_sum = vector_sum + sqrtf(acc.x * acc.x + acc.y * acc.y + acc.z * acc.z);
                 convolved_index++;
-                // printf("Accel [m/s^2]: X=%7.3f  Y=%7.3f  Z=%7.3f\n",
-                //     acc.x, acc.y, acc.z);
+                printf("Accel [m/s^2]: X=%7.3f  Y=%7.3f  Z=%7.3f\n",
+                    acc.x, acc.y, acc.z);
 
                 if(convolved_index >= 60 * 50){
                     ESP_LOGI(TAG, "total vector: %.2f",
