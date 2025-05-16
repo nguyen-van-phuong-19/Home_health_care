@@ -142,7 +142,7 @@ class _BleInitializerState extends State<BleInitializer> {
     print('HR: $hr, SpO2: $spo2, Motion: ${motion.toStringAsFixed(2)}');
     _publishBleData(hr, spo2, motion);
     await LocationPublisher.instance.startPeriodic(
-      'user123',
+      FirebaseAuth.instance.currentUser!.uid,
       intervalMinutes: 1,
     );
   }

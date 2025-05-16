@@ -1,9 +1,11 @@
 #include "esp_err.h"
+#include "esp_log.h"
 #include "freertos/idf_additions.h"
 #include "main.h"
 #include "l80r_process.h"
 #include "mqtt_cl.h"
 #include "sensor_data.h"
+#include "wifi_pr.h"
 #include <stdbool.h>
 // #include "ble_store.h"
 
@@ -45,7 +47,12 @@ static float vector_sum = 0.0f;
 
 void app_main(void)
 {
-    wifi_init_sta("102", "11111111");
+    wifi_init_sta();
+
+    if(!wifi_try_connect_list(5000)){
+      ESP_LOGI(TAG, "Connect fail to wifi!");
+    }
+
 
     // 2) Khởi tạo LIS2DH12TR
     ESP_ERROR_CHECK(i2c_master_init());
@@ -218,9 +225,8 @@ static void wifi_watchdog_task(void *arg)
 
             // thử reconnect Wi-Fi
             ESP_LOGI(TAG, "Watchdog: esp_wifi_connect()");
-            esp_err_t err = esp_wifi_connect();
-            if (err != ESP_OK) {
-                ESP_LOGE(TAG, "esp_wifi_connect() failed: %d", err);
+            if(!wifi_try_connect_list(5000)){
+              ESP_LOGI(TAG, "Connect fail to wifi!");
             }
 
         } else {
