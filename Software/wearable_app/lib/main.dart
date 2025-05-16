@@ -37,6 +37,7 @@ Future<void> main() async {
   await MQTTService().init();
   await MQTTService().connect();
   final webId = await _loadGoogleWebClientId();
+
   runApp(MyApp(googleClientId: webId));
 }
 
