@@ -4,6 +4,8 @@ idf_component_register(SRCS "main_hardware.c"
                     "wifi_pr.c"
                     "ble_fc.c"
                     "mqtt_cl.c"
+                    "st7789_lcd.c"
+                    "glcdfont.c"
                     INCLUDE_DIRS "."
                     REQUIRES bt                  # <— pull in esp_bt_main.h and friends
                         driver

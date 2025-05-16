@@ -1,5 +1,7 @@
+import 'package:firebase_auth/firebase_auth.dart';
+
 class UserModel {
-  final String userId;
+  final String userId = FirebaseAuth.instance.currentUser?.uid ?? '';
   final Map<String, HeartRateEntry> heartRate;
   final Map<String, CaloriesByHeartRateEntry> caloriesByHeartRate;
   final Map<String, Spo2Entry> spo2;
@@ -12,7 +14,6 @@ class UserModel {
   final Map<String, DailyCalories> caloriesDaily;
 
   UserModel({
-    required this.userId,
     required this.heartRate,
     required this.caloriesByHeartRate,
     required this.spo2,
@@ -27,7 +28,6 @@ class UserModel {
 
   factory UserModel.fromJson(Map<String, dynamic> json, String userId) {
     return UserModel(
-      userId: userId,
       heartRate:
           (json['heart_rate'] as Map<String, dynamic>?)?.map(
             (k, v) => MapEntry(k, HeartRateEntry.fromJson(v)),

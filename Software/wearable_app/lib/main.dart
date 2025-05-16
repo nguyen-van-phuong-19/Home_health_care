@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -92,6 +93,10 @@ class _BleInitializerState extends State<BleInitializer> {
     hrLast = 0;
     spo2Last = 0;
     motionLast = 0;
+    print(FirebaseAuth.instance.currentUser?.uid);
+    print(FirebaseAuth.instance.currentUser?.uid);
+    print(FirebaseAuth.instance.currentUser?.uid);
+    print(FirebaseAuth.instance.currentUser?.uid);
     _listenScan();
   }
 
@@ -193,7 +198,7 @@ class _BleInitializerState extends State<BleInitializer> {
   /// Returns [String] là userId
   Future<String> _getCurrentUserId() async {
     // TODO: implement logic lấy userId
-    return 'user123';
+    return FirebaseAuth.instance.currentUser?.uid ?? 'default_user';
   }
 
   @override

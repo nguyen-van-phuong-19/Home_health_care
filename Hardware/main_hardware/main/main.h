@@ -23,11 +23,12 @@ extern "C" {
 #include "nimble/nimble_port_freertos.h"
 #include "host/ble_hs.h"
 #include "esp_system.h"
+#include "st7789_lcd.h"
 
 
 // I2C configuration cho ESP32-S3-N16R8 (sử dụng chân phù hợp với board của bạn)
-#define I2C_MASTER_SDA_IO           6
-#define I2C_MASTER_SCL_IO           7
+#define I2C_MASTER_SDA_IO           14
+#define I2C_MASTER_SCL_IO           13
 #define I2C_MASTER_NUM              I2C_NUM_0
 #define I2C_MASTER_FREQ_HZ          100000  // 100 kHz để ổn định
 #define I2C_MASTER_TIMEOUT_MS       1000

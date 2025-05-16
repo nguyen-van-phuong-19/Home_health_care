@@ -267,6 +267,7 @@ static void transmit_task(void *pv)
     uint8_t hr;
     uint8_t spo2;
     float   motion;
+    const char *user_id = "2mrSt8vHRQd6kpPiHjuLobCrwK13";
 
     // Chọn chu kỳ gửi — ví dụ 1s
     const TickType_t delay_ticks = pdMS_TO_TICKS((1000 * 60) + 1000);
@@ -290,15 +291,15 @@ static void transmit_task(void *pv)
                 // l80r_data_t current;
                 // l80r_get_data(&current);
                 esp_err_t err;
-                err = mqtt_publish_heart_rate("user123",hr,75,23, 1);
+                err = mqtt_publish_heart_rate(user_id,hr,75,23, 1);
                 if (err != ESP_OK) {
                     ESP_LOGW(TAG, "MQTT HR publish failed: %s", esp_err_to_name(err));
                 }
-                err = mqtt_publish_spo2("user123",spo2);
+                err = mqtt_publish_spo2(user_id,spo2);
                 if (err != ESP_OK) {
                     ESP_LOGW(TAG, "MQTT SpO2 publish failed: %s", esp_err_to_name(err));
                 }
-                err = mqtt_publish_accelerometer("user123", motion, 75, 1);
+                err = mqtt_publish_accelerometer(user_id, motion, 75, 1);
                 if (err != ESP_OK) {
                     ESP_LOGW(TAG, "MQTT Motion publish failed: %s", esp_err_to_name(err));
                 }

@@ -17,7 +17,7 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final String _userId = 'user123';
+  final String _userId = FirebaseAuth.instance.currentUser?.uid ?? '';
 
   /// Hiển thị dialog thông tin user
   void _showUserInfo() {

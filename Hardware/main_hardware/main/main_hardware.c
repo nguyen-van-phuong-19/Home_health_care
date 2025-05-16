@@ -8,8 +8,16 @@
 #define MAX30102_TASK_STACK_SIZE    4096
 #define LIS2DH12_TASK_PRIORITY      5
 #define MAX30102_TASK_PRIORITY      5
+#define TFT_TASK_STACK_SIZE   4096
+#define TFT_TASK_PRIORITY     4
 
 static const char *TAG = "APP_MAIN";
+
+
+
+// Đây là buffer tĩnh cho task
+static StaticTask_t  tftTaskTCB;
+static StackType_t   tftTaskStack[TFT_TASK_STACK_SIZE];
 
 // Shared I2C mutex to protect bus on SDA/SCL
 static SemaphoreHandle_t i2c_mutex = NULL;
@@ -29,6 +37,7 @@ static void lis2dh12_task(void *arg);
 static void max30102_task(void *arg);
 // static void wifi_watchdog_task(void *arg);
 static void on_ble_conn(uint16_t h);
+static void tft_task(void *pvParameters);
 
 static uint32_t red_block[BLOCK_SIZE];
 static uint32_t ir_block[BLOCK_SIZE];
@@ -44,8 +53,8 @@ void app_main(void)
     // int count = 0;
 
     // 2) Khởi tạo LIS2DH12TR
-    ESP_ERROR_CHECK(i2c_master_init());
-    ESP_ERROR_CHECK(lis2dh12_init());
+    // ESP_ERROR_CHECK(i2c_master_init());
+    // ESP_ERROR_CHECK(lis2dh12_init());
     // ESP_ERROR_CHECK(max30102_init());
     // ESP_LOGI("MAIN", "I2C initialized");
 
@@ -85,15 +94,15 @@ void app_main(void)
     //         break;
     //     }
     // }
-    xTaskCreateStatic(
-        lis2dh12_task,      // hàm task
-        "lis2dh12_task",    // tên task
-        LIS2DH12_TASK_STACK_SIZE,               // stack size (bytes)
-        NULL,               // tham số truyền vào
-        LIS2DH12_TASK_PRIORITY,
-        lis2dh12_stack,
-        &lis2dh12_tcb
-    );
+    // xTaskCreateStatic(
+    //     lis2dh12_task,      // hàm task
+    //     "lis2dh12_task",    // tên task
+    //     LIS2DH12_TASK_STACK_SIZE,               // stack size (bytes)
+    //     NULL,               // tham số truyền vào
+    //     LIS2DH12_TASK_PRIORITY,
+    //     lis2dh12_stack,
+    //     &lis2dh12_tcb
+    // );
 
     // xTaskCreateStatic(
     //     max30102_task,      // hàm task
@@ -115,6 +124,16 @@ void app_main(void)
     //     &wifiWdTCB                  // TCB buffer
     // );
 
+
+    xTaskCreateStatic(
+        tft_task,                 // hàm entry
+        "tft_task",               // tên task
+        TFT_TASK_STACK_SIZE,      // stack depth (words!)
+        NULL,                     // pvParameters
+        TFT_TASK_PRIORITY,        // priority
+        tftTaskStack,             // Stack buffer
+        &tftTaskTCB               // TCB buffer
+    );
 }
 
 
@@ -127,8 +146,8 @@ static void lis2dh12_task(void *arg)
             if (lis2dh12_get_vector(&acc) == ESP_OK) {
                 vector_sum = vector_sum + sqrtf(acc.x * acc.x + acc.y * acc.y + acc.z * acc.z);
                 convolved_index++;
-                printf("Accel [m/s^2]: X=%7.3f  Y=%7.3f  Z=%7.3f\n",
-                    acc.x, acc.y, acc.z);
+                // printf("Accel [m/s^2]: X=%7.3f  Y=%7.3f  Z=%7.3f\n",
+                //     acc.x, acc.y, acc.z);
 
                 if(convolved_index >= 60 * 50){
                     ESP_LOGI(TAG, "total vector: %.2f",
@@ -257,4 +276,25 @@ static void max30102_task(void *arg)
 
 static void on_ble_conn(uint16_t h) {
   conn_handle = h;   // gán cho biến riêng của bạn
+}
+
+
+static void tft_task(void *pvParameters)
+{
+    // 1) Khởi LCD
+    if (st7789_init() != ESP_OK) {
+        ESP_LOGE(TAG, "TFT init failed");
+        vTaskDelete(NULL);
+    }
+
+    // 2) Clear nền đen
+    st7789_fill_screen(0x0000);
+
+    // 3) Vẽ chữ Hello world (màu trắng)
+    st7789_draw_string(10, 10, "Hello world", 0xFFFF);
+
+    // 4) Giữ nhiệm vụ sống yên, không redraw nữa
+    while (1) {
+        vTaskDelay(pdMS_TO_TICKS(1000));
+    }
 }
