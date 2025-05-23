@@ -12,6 +12,7 @@ import 'package:wearable_app/core/config/firebase_options.dart';
 import 'package:wearable_app/core/utils/process_mqtt.dart';
 import 'package:wearable_app/models/topic_model.dart';
 import 'package:wearable_app/screens/authentication_wrapper.dart';
+import 'package:wearable_app/services/ble_service.dart';
 import 'package:wearable_app/services/location_publisher.dart';
 import 'package:wearable_app/services/mqtt_service.dart';
 import 'package:firebase_ui_localizations/firebase_ui_localizations.dart';
@@ -31,7 +32,6 @@ Future<String> _loadGoogleWebClientId() async {
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   await MQTTService().init();
@@ -85,7 +85,7 @@ class BleInitializer extends StatefulWidget {
 class _BleInitializerState extends State<BleInitializer> {
   StreamSubscription<BluetoothConnectionState>? _connSub;
   late int hrLast;
-  late int spo2Last;
+  late double spo2Last;
   late double motionLast;
 
   @override
@@ -98,53 +98,40 @@ class _BleInitializerState extends State<BleInitializer> {
     print(FirebaseAuth.instance.currentUser?.uid);
     print(FirebaseAuth.instance.currentUser?.uid);
     print(FirebaseAuth.instance.currentUser?.uid);
-    _listenScan();
-  }
+    // _listenScan();
+    BleService.instance.onEsp32Advertisement = (payload) async {
+      // Xử lý payload từ ESP32-S3 ở đây
+      final bd = ByteData.sublistView(Uint8List.fromList(payload));
+      // print(bd.buffer.asUint8List().toString());
+      final hr = bd.getUint8(0);
+      final spo2 = bd.getFloat32(1, Endian.little);
+      final motion = bd.getFloat32(5, Endian.little);
 
-  Future<void> _listenScan() async {
-    FlutterBluePlus.scanResults.listen((results) {
-      for (final r in results) {
-        handleScanResult(r);
+      if (hr == hrLast && spo2 == spo2Last && motion == motionLast) {
+        return;
       }
-    });
-    await FlutterBluePlus.startScan(
-      androidScanMode: AndroidScanMode.lowLatency,
-    );
-  }
 
-  Future<void> handleScanResult(ScanResult r) async {
-    final m = r.advertisementData.manufacturerData;
-    // Key là Company ID (0xABCD)
-    final data = m[0xABCD];
-    if (data == null || data.length < 6) {
-      return;
-    }
+      if (hr == 0 && spo2 == 0 && motion == 0) {
+        return;
+      }
 
-    final bd = ByteData.sublistView(Uint8List.fromList(data));
-    final hr = bd.getUint8(0);
-    final spo2 = bd.getUint8(1);
-    final motion = bd.getFloat32(2, Endian.little);
+      setState(() {
+        hrLast = hr;
+        spo2Last = spo2;
+        motionLast = motion;
+      });
 
-    if (hr == hrLast && spo2 == spo2Last && motion == motionLast) {
-      return;
-    }
+      print(
+        'HR: $hr, SpO2: ${spo2.toStringAsFixed(2)}, Motion: ${motion.toStringAsFixed(2)}',
+      );
+      _publishBleData(hr, spo2, motion);
+      await LocationPublisher.instance.startPeriodic(
+        FirebaseAuth.instance.currentUser!.uid,
+        intervalMinutes: 1,
+      );
+    };
 
-    if (hr == 0 && spo2 == 0 && motion == 0) {
-      return;
-    }
-
-    setState(() {
-      hrLast = hr;
-      spo2Last = spo2;
-      motionLast = motion;
-    });
-
-    print('HR: $hr, SpO2: $spo2, Motion: ${motion.toStringAsFixed(2)}');
-    _publishBleData(hr, spo2, motion);
-    await LocationPublisher.instance.startPeriodic(
-      FirebaseAuth.instance.currentUser!.uid,
-      intervalMinutes: 1,
-    );
+    BleService.instance.start(FirebaseAuth.instance.currentUser?.uid);
   }
 
   /// Hàm tổng hợp & gửi dữ liệu BLE qua MQTT
@@ -156,7 +143,7 @@ class _BleInitializerState extends State<BleInitializer> {
   /// [motion] là số gia tốc
   ///
   /// Returns [Future<void>] là promise cho việc gửi dữ liệu
-  Future<void> _publishBleData(int hr, int spo2, double motion) async {
+  Future<void> _publishBleData(int hr, double spo2, double motion) async {
     // Lấy userId từ chỗ bạn lưu (ví dụ SharedPreferences, Auth service, v.v.)
     final String userId = await _getCurrentUserId();
 
@@ -171,7 +158,10 @@ class _BleInitializerState extends State<BleInitializer> {
     );
 
     // 2.2 Tạo model Spo2Topic
-    final spo2Topic = Spo2Topic(userId: userId, percentage: spo2.toDouble());
+    final spo2Topic = Spo2Topic(
+      userId: userId,
+      percentage: double.parse(spo2.toStringAsFixed(2)),
+    );
 
     // 2.3 Tạo model AccelerometerTopic
     final accelTopic = AccelerometerTopic(

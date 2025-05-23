@@ -10,6 +10,7 @@
 #include "services/gap/ble_svc_gap.h"
 #include <string.h>
 #include "host/ble_hs_adv.h"    // cho ble_hs_adv_parse_fields
+#include "ble_fc.h"
 
 
 static const char *TAG = "BLE_FC";
@@ -24,42 +25,62 @@ static const struct ble_gap_disc_params disc_params = {
     .passive        = 0,                               // active scan (yêu cầu scan response)
 };
 
-// Callback xử lý các sự kiện GAP, trong đó có sự kiện DISC (khi quét thấy quảng bá)
+// Định nghĩa Company ID phải trùng với bên Flutter
+#define PEER_COMPANY_ID  0xABEF
+
 static int
 ble_gap_event_cb(struct ble_gap_event *event, void *arg)
 {
-    switch (event->type) {
-        case BLE_GAP_EVENT_DISC: {
-            struct ble_hs_adv_fields fields;
-            int rc = ble_hs_adv_parse_fields(
-                &fields,
-                event->disc.data,
-                event->disc.length_data
-            );
-            if (rc != 0) {
-                ESP_LOGE(TAG, "adv_parse_fields failed; rc=%d", rc);
-                break;
-            }
-
-            if (fields.mfg_data_len > 0) {
-                const uint8_t *mac = event->disc.addr.val;
-                ESP_LOGI(TAG,
-                         "Found MfgData from %02x:%02x:%02x:%02x:%02x:%02x, len=%u",
-                         mac[5], mac[4], mac[3],
-                         mac[2], mac[1], mac[0],
-                         fields.mfg_data_len);
-                ESP_LOG_BUFFER_HEX(
-                    TAG,
-                    fields.mfg_data,
-                    fields.mfg_data_len
-                );
-            }
-            break;
-        }
-
-        default:
-            break;
+    if (event->type != BLE_GAP_EVENT_DISC) {
+        return 0;
     }
+
+    struct ble_hs_adv_fields fields;
+    int rc = ble_hs_adv_parse_fields(
+        &fields,
+        event->disc.data,
+        event->disc.length_data
+    );
+    if (rc != 0) {
+        ESP_LOGE(TAG, "adv_parse_fields failed; rc=%d", rc);
+        return 0;
+    }
+
+    const uint8_t *mac         = event->disc.addr.val;
+    // Cần tối thiểu 2 byte để chứa Company ID
+    if (fields.mfg_data_len < 2) {
+        return 0;
+    }
+
+
+    // Lấy 2 byte đầu làm Company ID (little-endian)
+    uint16_t company = fields.mfg_data[0] | (fields.mfg_data[1] << 8);
+    if (company != PEER_COMPANY_ID) {
+        // không phải quảng bá từ app Flutter của bạn → bỏ qua
+        return 0;
+    }
+
+    // Company ID khớp → xử lý payload
+    const uint8_t *payload     = fields.mfg_data + 2;
+    uint8_t        payload_len = fields.mfg_data_len - 2;
+    // const uint8_t *mac         = event->disc.addr.val;
+
+    ESP_LOGI(TAG,
+             "Matched MfgData from %02x:%02x:%02x:%02x:%02x:%02x, payload_len=%u",
+             mac[5], mac[4], mac[3],
+             mac[2], mac[1], mac[0],
+             payload_len);
+
+    // In payload dưới dạng hex
+    ESP_LOG_BUFFER_HEX(
+        TAG,
+        payload,
+        payload_len
+    );
+
+    // TODO: Thêm code xử lý payload cụ thể ở đây
+    // ví dụ: giải mã giá trị nhịp tim, SpO2, motion,…
+
     return 0;
 }
 
@@ -215,7 +236,7 @@ esp_err_t update_service_data(const uint8_t *data, uint8_t len) {
     }
 
     /* 4) Quét 1 lần như trước */
-    start_one_shot_scan(500);  // scan 500 ms
+    start_one_shot_scan(5000);  // scan 5000 ms
     return ESP_OK;
 }
 

@@ -1,10 +1,12 @@
 #include "mqtt_cl.h"
 #include "esp_err.h"
+#include "sensor_data.h"
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
 
 static const char *TAG = "MQTT_CL";
+static bool parse_sleep_duration(const char *data, int data_len, float *out_val);
 static esp_mqtt_client_handle_t client = NULL;
 static mqtt_msg_cb_t    user_msg_cb = NULL;
 // EventGroup để signal đã kết nối
@@ -20,7 +22,8 @@ static esp_err_t _mqtt_event_handler_cb(esp_mqtt_event_handle_t event) {
             mqtt_subscribe_topic(MQTT_TOPIC_HEART_RATE, 0);
             mqtt_subscribe_topic(MQTT_TOPIC_SPO2, 0);
             mqtt_subscribe_topic(MQTT_TOPIC_ACCELEROMETER, 0);
-            mqtt_subscribe_topic(MQTT_TOPIC_GPS, 0);
+            mqtt_subscribe_topic(MQTT_TOPIC_CALORIES, 0);
+            mqtt_subscribe_topic(MQTT_TOPIC_SLEEP, 0);
             break;
         case MQTT_EVENT_DISCONNECTED:
             xEventGroupClearBits(mqtt_event_group, MQTT_CONNECTED_BIT);
@@ -30,6 +33,17 @@ static esp_err_t _mqtt_event_handler_cb(esp_mqtt_event_handle_t event) {
             ESP_LOGI(TAG, "Incoming[%.*s]: %.*s",
                      event->topic_len, event->topic,
                      event->data_len,  event->data);
+            if (event->topic_len == strlen(MQTT_TOPIC_SLEEP)
+                && strncmp(event->topic, MQTT_TOPIC_SLEEP, event->topic_len) == 0) {
+                float sleep_hours;
+                if (parse_sleep_duration(event->data, event->data_len, &sleep_hours)) {
+                    ESP_LOGI(TAG, "Parsed sleep_duration = %.2f hours", sleep_hours);
+                    sensor_data_set_sleep_hours(sleep_hours);
+                    // TODO: lưu hoặc xử lý sleep_hours tại đây
+                } else {
+                    ESP_LOGW(TAG, "Failed to parse sleep_duration");
+                }
+            }
             if (user_msg_cb) {
                 user_msg_cb(event->topic, event->data, event->data_len);
             }
@@ -141,6 +155,61 @@ esp_err_t mqtt_publish_gps(const char* user_id,
         "{\"user_id\":\"%s\",\"latitude\":%.6f,\"longitude\":%.6f,\"altitude\":%.2f}",
         user_id, latitude, longitude, altitude);
     return mqtt_publish_message(MQTT_TOPIC_GPS, payload, len, 1, false);
+}
+
+
+void mqtt_publish_calories(void) {
+    float cal_hr = 0.0f;
+    float cal_motion = 0.0f;
+    float cal_total = 0.0f;
+
+    // Lấy dữ liệu calories
+    if (sensor_data_get_calories_hr(&cal_hr) != ESP_OK ||
+        sensor_data_get_calories_motion(&cal_motion) != ESP_OK ||
+        sensor_data_get_daily_calories(&cal_total) != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to retrieve calories data");
+        return;
+    }
+
+    // Tạo payload JSON
+    char payload[128];
+    int len = snprintf(payload, sizeof(payload),
+                       "{\"cal_hr\":%.2f,\"cal_motion\":%.2f,\"cal_total\":%.2f}",
+                       cal_hr, cal_motion, cal_total);
+    if (len < 0 || len >= sizeof(payload)) {
+        ESP_LOGE(TAG, "Payload formatting error");
+        return;
+    }
+    mqtt_publish_message(MQTT_TOPIC_CALORIES, payload, len, 1, false);
+}
+
+
+static bool parse_sleep_duration(const char *data, int data_len, float *out_val)
+{
+    // Copy vào buffer null-terminated
+    char buf[64];
+    int  len = data_len < (int)sizeof(buf)-1 ? data_len : (int)sizeof(buf)-1;
+    memcpy(buf, data, len);
+    buf[len] = '\0';
+
+    // 1) Thử parse JSON có key "sleep_duration"
+    char *p = strstr(buf, "\"sleep_duration\"");
+    if (p) {
+        p = strchr(p, ':');
+        if (p && (sscanf(p+1, " %f", out_val) == 1)) {
+            return true;
+        }
+        return false;
+    }
+
+    // 2) Nếu không có JSON, thử parse như một số đơn thuần
+    //    Tìm số đầu tiên trong chuỗi
+    if (sscanf(buf, " %f", out_val) == 1) {
+        return true;
+    }
+
+    // Không parse được
+    return false;
 }
 
 /*

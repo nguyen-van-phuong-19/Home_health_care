@@ -5,10 +5,12 @@
 #include "mqtt_cl.h"
 #include "sensor_data.h"
 #include "wifi_pr.h"
+#include <math.h>
 #include <stdbool.h>
 #include "sensor_data.h"   // sensor_data_get_all()
 #include "ssd1306_oled.h"
 #include <stdio.h>         // fopen, fprintf, fgets, fclose
+#include <unistd.h>
 
 
 #define LIS2DH12_TASK_STACK_SIZE    (8*1024)
@@ -45,6 +47,8 @@ static int block_index = 0;
 static int convolved_index = 0;
 static float convolved_signal[CONVOLVED_SIZE];
 static float vector_sum = 0.0f;
+static float daily_total = 0.0f;
+static int count_write_nvs = 0;
 
 void app_main(void)
 {
@@ -66,6 +70,7 @@ void app_main(void)
     configASSERT(i2c_mutex);
 
     ESP_ERROR_CHECK(sensor_data_init());
+    // ESP_ERROR_CHECK(sensor_data_load_calories_nvs());
 
     ssd1306_clear();
     ssd1306_draw_string(0, 0, "Hello, OLED!");
@@ -132,13 +137,21 @@ void app_main(void)
 static void lis2dh12_task(void *arg)
 {
     lis2dh12_vector_t acc;
-    lis2dh12_vector_t acc_last;
+    const float g = 9.81f;
+    float a_dyn;
+    float dt_s = 0.01f;
+    float total_time_s = 0;
+
     for(;;) {
         if(xSemaphoreTake(i2c_mutex, portMAX_DELAY) == pdTRUE) {
             if (lis2dh12_get_vector(&acc) == ESP_OK) {
-                vector_sum = vector_sum + sqrtf((acc.x - acc_last.x) * (acc.x - acc_last.x) + (acc.y - acc_last.y) * (acc.y - acc_last.y) + (acc.z - acc_last.z) * (acc.z - acc_last.z));
+                // Giả sử acc.x, acc.y, acc.z đã là m/s²
+                float mag = sqrtf(acc.x*acc.x + acc.y*acc.y + acc.z*acc.z);
+                a_dyn = mag -g;
+                if (a_dyn < 0) a_dyn = 0;  // khi không di chuyển, bỏ qua
+                vector_sum += a_dyn * dt_s;
+                total_time_s  += dt_s;
                 convolved_index++;
-                acc_last = acc;
                 // printf("Accel [m/s^2]: X=%7.3f  Y=%7.3f  Z=%7.3f\n",
                 //     acc.x, acc.y, acc.z);
 
@@ -146,6 +159,7 @@ static void lis2dh12_task(void *arg)
                     ESP_LOGI(TAG, "total vector: %.2f",
                                 vector_sum);
                     sensor_data_set_motion(vector_sum);
+                    sensor_data_update_daily_calories(23, 73, 0, total_time_s, &daily_total);
                     vector_sum = 0.0f;
                     convolved_index = 0;
                 }
@@ -197,7 +211,7 @@ static void max30102_task(void *arg)
                     }
 
                     xSemaphoreGive(i2c_mutex);
-                    vTaskDelay(pdMS_TO_TICKS(5000)); // Chờ 10 giây trước khi thu thập block tiếp theo
+                    vTaskDelay(pdMS_TO_TICKS(50000)); // Chờ 50 giây trước khi thu thập block tiếp theo
                     continue;
                 }
             } else {
@@ -286,17 +300,26 @@ static void transmit_task(void *pv)
     uint8_t hr;
     float spo2;
     float   motion;
+    float    cal_hr, cal_motion, cal_total;
     const char *user_id = "2mrSt8vHRQd6kpPiHjuLobCrwK13";
 
     // Chọn chu kỳ gửi — ví dụ 1s
     const TickType_t delay_ticks = pdMS_TO_TICKS((1000 * 60) + 1000);
 
     while (1) {
-        // 1) Lấy đồng thời cả 3 giá trị (atomic dưới mutex)
-        if (sensor_data_get_all(&hr, &spo2, &motion) != ESP_OK) {
-            ESP_LOGW(TAG, "Cannot read sensor data");
+        if (sensor_data_get_all(&hr, &spo2, &motion) != ESP_OK ||
+            sensor_data_get_calories_hr(&cal_hr)  != ESP_OK ||
+            sensor_data_get_calories_motion(&cal_motion) != ESP_OK ||
+            sensor_data_get_daily_calories(&cal_total)  != ESP_OK) {
+            ESP_LOGW(TAG, "Cannot read sensor/calories data");
             vTaskDelay(delay_ticks);
             continue;
+        }
+        count_write_nvs++;
+
+        if(count_write_nvs == 4){
+          // sensor_data_save_calories_nvs();
+          count_write_nvs = 0;
         }
 
         // 2) Kiểm tra Wi-Fi
@@ -322,10 +345,7 @@ static void transmit_task(void *pv)
                 if (err != ESP_OK) {
                     ESP_LOGW(TAG, "MQTT Motion publish failed: %s", esp_err_to_name(err));
                 }
-                // err = mqtt_publish_gps("user123", current.latitude, current.longitude, current.altitude);
-                // if(err != ESP_OK){
-                //     ESP_LOGW(TAG, "MQTT GPS publish failed: %s", esp_err_to_name(err));
-                // }
+                mqtt_publish_calories();
             } else {
                 ESP_LOGW(TAG, "WiFi OK but MQTT not connected");
                 // Có thể trigger reconnect hoặc log, tuỳ bạn
@@ -334,15 +354,34 @@ static void transmit_task(void *pv)
             // 2b) Nếu không có Wi-Fi → gửi qua BLE advertising
             // Bạn cần convert 3 giá trị vào 1 mảng bytes
             // Ví dụ: [hr(1B), spo2(4B), motion(4B float little-endian)]
-            uint8_t buf[9];
-            buf[0] = hr;
-            // buf[1] = spo2;
-            // memcopy float vào buf[1..4]
-            memcpy(&buf[1], &spo2, sizeof(spo2));
-            // memcopy float vào buf[5..8]
-            memcpy(&buf[5], &motion, sizeof(motion));
+            uint8_t buf[1 + 5 * sizeof(float)];
+            size_t  idx = 0;
 
-            if (update_service_data(buf, sizeof(buf)) != ESP_OK) {
+            // 1 byte HR
+            buf[idx++] = hr;
+
+            // 4 bytes SpO2
+            memcpy(&buf[idx], &spo2, sizeof(spo2));
+            idx += sizeof(spo2);
+
+            // 4 bytes Motion
+            memcpy(&buf[idx], &motion, sizeof(motion));
+            idx += sizeof(motion);
+
+            // 4 bytes Calories_from_HR
+            memcpy(&buf[idx], &cal_hr, sizeof(cal_hr));
+            idx += sizeof(cal_hr);
+
+            // 4 bytes Calories_from_Motion
+            memcpy(&buf[idx], &cal_motion, sizeof(cal_motion));
+            idx += sizeof(cal_motion);
+
+            // 4 bytes Calories_Total
+            memcpy(&buf[idx], &cal_total, sizeof(cal_total));
+            idx += sizeof(cal_total);
+
+            // Đẩy vào manufacturer data
+            if (update_service_data(buf, idx) != ESP_OK) {
                 ESP_LOGW(TAG, "BLE adv update failed");
             }
             // BLE advertising phải đã start sẵn ở init, bạn chỉ cần update payload
@@ -359,35 +398,53 @@ static void display_task(void *pvParameter)
     float   spo2   = 0.0f;
     float   motion = 0.0f;
     char    buf[32];
+    float sleep_hours = 0.0f;
 
     for (;;)
     {
         if (sensor_data_get_all(&hr, &spo2, &motion) == ESP_OK) {
             // Chờ lấy mutex trong tối đa 100ms
-            if (xSemaphoreTake(i2c_mutex, pdMS_TO_TICKS(100)) == pdTRUE) {
-                // Các thao tác I2C với OLED
-                ssd1306_clear();
+            if(sensor_data_get_daily_calories(&daily_total) == ESP_OK){
 
-                snprintf(buf, sizeof(buf), "HR: %3u bpm", hr);
-                ssd1306_draw_string(0, 0, buf);
+                if(sensor_data_get_sleep_hours(&sleep_hours) == ESP_OK){
 
-                snprintf(buf, sizeof(buf), "SpO2:%.1f%%", spo2);
-                ssd1306_draw_string(0, 2, buf);
+                    if (xSemaphoreTake(i2c_mutex, pdMS_TO_TICKS(100)) == pdTRUE) {
+                        // Các thao tác I2C với OLED
+                        ssd1306_clear();
 
-                snprintf(buf, sizeof(buf), "Motion:%.2f", motion);
-                ssd1306_draw_string(0, 4, buf);
+                        snprintf(buf, sizeof(buf), "HR: %3u bpm", hr);
+                        ssd1306_draw_string(0, 0, buf);
 
-                ssd1306_refresh();
+                        snprintf(buf, sizeof(buf), "SpO2:%.1f%%", spo2);
+                        ssd1306_draw_string(0, 1, buf);
 
-                xSemaphoreGive(i2c_mutex);
+                        snprintf(buf, sizeof(buf), "Motion:%.2f", motion);
+                        ssd1306_draw_string(0, 2, buf);
+
+                        snprintf(buf, sizeof(buf), "calories:%.2f", daily_total);
+                        ssd1306_draw_string(0, 3, buf);
+
+                        snprintf(buf, sizeof(buf), "sleep hours:%.2f", sleep_hours);
+                        ssd1306_draw_string(0, 4, buf);
+
+                        ssd1306_refresh();
+
+                        xSemaphoreGive(i2c_mutex);
+                    } else {
+                        ESP_LOGW(TAG, "Could not take i2c_mutex");
+                    }
+                } else {
+                    ESP_LOGE(TAG, "sensor_data_get_sleep_hours failed");
+                }
+
             } else {
-                ESP_LOGW(TAG, "Could not take i2c_mutex");
+                ESP_LOGE(TAG, "sensor_data_get_daily_calories failed");
             }
         } else {
             ESP_LOGE(TAG, "sensor_data_get_all failed");
         }
 
-        vTaskDelay(pdMS_TO_TICKS(1000));
+        vTaskDelay(pdMS_TO_TICKS(10000));
     }
 }
 

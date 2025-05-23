@@ -6,7 +6,6 @@ extern "C" {
 #endif
 
 #include <stdio.h>
-#include "ble_fc.h"
 #include "esp_err.h"
 
 /**

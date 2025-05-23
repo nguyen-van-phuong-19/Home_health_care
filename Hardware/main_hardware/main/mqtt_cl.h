@@ -14,12 +14,15 @@ extern "C" {
 #include "esp_timer.h"
 #include "esp_event.h"
 #include "mqtt_client.h"
+#include "sensor_data.h"
 
 // --- MQTT topic definitions (must match server subscription) ---
 #define MQTT_TOPIC_HEART_RATE        "wearable_02420/heart_rate"
 #define MQTT_TOPIC_SPO2              "wearable_02420/spo2"
 #define MQTT_TOPIC_ACCELEROMETER     "wearable_02420/accelerometer"
 #define MQTT_TOPIC_GPS               "wearable_02420/gps"
+#define MQTT_TOPIC_CALORIES          "wearable_02420/calories"
+#define MQTT_TOPIC_SLEEP             "wearable_02420/sleep_daily"
 
 extern EventGroupHandle_t mqtt_event_group;
 extern const int MQTT_CONNECTED_BIT;
@@ -67,7 +70,7 @@ esp_err_t mqtt_publish_gps(const char* user_id,
                             double longitude,
                             double altitude);
 
-
+void mqtt_publish_calories(void);
 
 #ifdef __cplusplus
 }
