@@ -1,23 +1,24 @@
+#include "esp_err.h"
 #include "esp_log.h"
+#include "freertos/idf_additions.h"
 #include "main.h"
-// #include "ble_store.h"
-
+#include "mqtt_cl.h"
+#include "sensor_data.h"
+#include "wifi_pr.h"
+#include <stdbool.h>
+#include "sensor_data.h"   // sensor_data_get_all()
+#include "ssd1306_oled.h"
+#include <stdio.h>         // fopen, fprintf, fgets, fclose
 
 
 #define LIS2DH12_TASK_STACK_SIZE    (8*1024)
 #define MAX30102_TASK_STACK_SIZE    4096
 #define LIS2DH12_TASK_PRIORITY      5
 #define MAX30102_TASK_PRIORITY      5
-#define TFT_TASK_STACK_SIZE   4096
-#define TFT_TASK_PRIORITY     4
+#define WIFI_WATCHDOG_TASK_PRIORITY 12
+#define TRANSMIT_TASK_PRIORITY      3
 
 static const char *TAG = "APP_MAIN";
-
-
-
-// Đây là buffer tĩnh cho task
-static StaticTask_t  tftTaskTCB;
-static StackType_t   tftTaskStack[TFT_TASK_STACK_SIZE];
 
 // Shared I2C mutex to protect bus on SDA/SCL
 static SemaphoreHandle_t i2c_mutex = NULL;
@@ -27,17 +28,16 @@ static StackType_t  lis2dh12_stack[LIS2DH12_TASK_STACK_SIZE];
 static StaticTask_t max30102_tcb;
 static StackType_t  max30102_stack[MAX30102_TASK_STACK_SIZE];
 // cấu hình stack/TCB để tạo task tĩnh
-// #define WIFI_WD_STACK_SIZE 4096
-// static StaticTask_t   wifiWdTCB;
-// static StackType_t    wifiWdStack[WIFI_WD_STACK_SIZE];
+#define WIFI_WD_STACK_SIZE 4096
+static StaticTask_t   wifiWdTCB;
+static StackType_t    wifiWdStack[WIFI_WD_STACK_SIZE];
 
-// static SemaphoreHandle_t mqtt_mutex = NULL;
 
 static void lis2dh12_task(void *arg);
 static void max30102_task(void *arg);
-// static void wifi_watchdog_task(void *arg);
-static void on_ble_conn(uint16_t h);
-static void tft_task(void *pvParameters);
+static void wifi_watchdog_task(void *arg);
+static void transmit_task(void *pv);
+static void display_task(void *pvParameter);
 
 static uint32_t red_block[BLOCK_SIZE];
 static uint32_t ir_block[BLOCK_SIZE];
@@ -45,115 +45,107 @@ static int block_index = 0;
 static int convolved_index = 0;
 static float convolved_signal[CONVOLVED_SIZE];
 static float vector_sum = 0.0f;
-static uint16_t conn_handle = 0xffff;  // sẽ được set khi có kết nối
 
 void app_main(void)
 {
-    // wifi_init_sta("102", "11111111");
-    // int count = 0;
+    wifi_init_sta();
+
+    if(!wifi_try_connect_list(5000)){
+      ESP_LOGI(TAG, "Connect fail to wifi!");
+    }
 
     // 2) Khởi tạo LIS2DH12TR
-    // ESP_ERROR_CHECK(i2c_master_init());
-    // ESP_ERROR_CHECK(lis2dh12_init());
-    // ESP_ERROR_CHECK(max30102_init());
-    // ESP_LOGI("MAIN", "I2C initialized");
+    ESP_ERROR_CHECK(i2c_master_init());
+    ESP_ERROR_CHECK(lis2dh12_init());
+    ssd1306_init();
+    ESP_ERROR_CHECK(max30102_init());
+    ESP_LOGI("MAIN", "I2C initialized");
 
     // // Create I2C mutex (with priority inheritance)
-    // i2c_mutex = xSemaphoreCreateMutex();
-    // mqtt_mutex = xSemaphoreCreateMutex();
-    // configASSERT(i2c_mutex);
-    // uint8_t hr    = 70;        // hàm của bạn
-    // uint8_t spo2  = 97;              // hàm của bạn
-    // float   motion= 3832.45f;// hàm của bạn
+    i2c_mutex = xSemaphoreCreateMutex();
+    configASSERT(i2c_mutex);
 
-    // ble_app_init();
+    ESP_ERROR_CHECK(sensor_data_init());
 
-    // // Giả sử đọc cảm biến lần đầu:
-    // send_sensor_data(75, 98, 1.23f);
-    // while (1) {
-    //     ESP_LOGI(TAG, "LIS2DH12TR read failed");
-    //     vTaskDelay(pdMS_TO_TICKS(1000));
-    //     count++;
-    //     if(count >= 200){
-    //       esp_restart();
-    //     }
-    // }
-    // for (;;) {
-    //   vTaskDelay(pdMS_TO_TICKS(1000 * 30));
-    //   send_sensor_data(hr++, spo2, motion++);
-    // }
-    //     switch (ble_get_state()) {
-    //     case BLE_STATE_DISCONNECTED:
-    //         printf("BLE: disconnected\n");
-    //         break;
-    //     case BLE_STATE_ADVERTISING:
-    //         printf("BLE: advertising\n");
-    //         break;
-    //     case BLE_STATE_CONNECTED:
-    //         printf("BLE: connected (handle=%d)\n", ble_get_conn_handle());
-    //         break;
-    //     }
-    // }
-    // xTaskCreateStatic(
-    //     lis2dh12_task,      // hàm task
-    //     "lis2dh12_task",    // tên task
-    //     LIS2DH12_TASK_STACK_SIZE,               // stack size (bytes)
-    //     NULL,               // tham số truyền vào
-    //     LIS2DH12_TASK_PRIORITY,
-    //     lis2dh12_stack,
-    //     &lis2dh12_tcb
-    // );
+    ssd1306_clear();
+    ssd1306_draw_string(0, 0, "Hello, OLED!");
+    ssd1306_refresh();
 
-    // xTaskCreateStatic(
-    //     max30102_task,      // hàm task
-    //     "max30102_task",    // tên task
-    //     MAX30102_TASK_STACK_SIZE,               // stack size (bytes)
-    //     NULL,               // tham số truyền vào
-    //     MAX30102_TASK_PRIORITY,
-    //     max30102_stack,
-    //     &max30102_tcb
-    // );
-
-    // xTaskCreateStatic(
-    //     wifi_watchdog_task,         // entry fn
-    //     "wifi_watchdog",            // name
-    //     WIFI_WD_STACK_SIZE,         // stack depth (words)
-    //     NULL,                       // param
-    //     tskIDLE_PRIORITY + 1,       // priority
-    //     wifiWdStack,                // stack buffer
-    //     &wifiWdTCB                  // TCB buffer
-    // );
-
+    BaseType_t r;
 
     xTaskCreateStatic(
-        tft_task,                 // hàm entry
-        "tft_task",               // tên task
-        TFT_TASK_STACK_SIZE,      // stack depth (words!)
-        NULL,                     // pvParameters
-        TFT_TASK_PRIORITY,        // priority
-        tftTaskStack,             // Stack buffer
-        &tftTaskTCB               // TCB buffer
+        lis2dh12_task,      // hàm task
+        "lis2dh12_task",    // tên task
+        LIS2DH12_TASK_STACK_SIZE,               // stack size (bytes)
+        NULL,               // tham số truyền vào
+        LIS2DH12_TASK_PRIORITY,
+        lis2dh12_stack,
+        &lis2dh12_tcb
     );
+
+    xTaskCreateStatic(
+        max30102_task,      // hàm task
+        "max30102_task",    // tên task
+        MAX30102_TASK_STACK_SIZE,               // stack size (bytes)
+        NULL,               // tham số truyền vào
+        MAX30102_TASK_PRIORITY,
+        max30102_stack,
+        &max30102_tcb
+    );
+
+    xTaskCreateStatic(
+        wifi_watchdog_task,         // entry fn
+        "wifi_watchdog",            // name
+        WIFI_WD_STACK_SIZE,         // stack depth (words)
+        NULL,                       // param
+        WIFI_WATCHDOG_TASK_PRIORITY,       // priority
+        wifiWdStack,                // stack buffer
+        &wifiWdTCB                  // TCB buffer
+    );
+
+    r = xTaskCreate(
+        transmit_task,
+        "transmit",
+        4*1024,
+        NULL,
+        TRANSMIT_TASK_PRIORITY,  // ưu tiên cao hơn các task thu thập dữ liệu
+        NULL
+    );
+
+    xTaskCreate(
+        display_task,        // function
+        "display_task",      // name
+        4096,                // stack size in bytes
+        NULL,                // parameter
+        5,                   // priority
+        NULL                 // task handle
+    );
+
+    if (r != pdPASS) {
+        ESP_LOGE(TAG, "Failed to create transmit_task");
+    }
+
+
 }
 
 
 static void lis2dh12_task(void *arg)
 {
     lis2dh12_vector_t acc;
-    char payload[256];
+    lis2dh12_vector_t acc_last;
     for(;;) {
         if(xSemaphoreTake(i2c_mutex, portMAX_DELAY) == pdTRUE) {
             if (lis2dh12_get_vector(&acc) == ESP_OK) {
-                vector_sum = vector_sum + sqrtf(acc.x * acc.x + acc.y * acc.y + acc.z * acc.z);
+                vector_sum = vector_sum + sqrtf((acc.x - acc_last.x) * (acc.x - acc_last.x) + (acc.y - acc_last.y) * (acc.y - acc_last.y) + (acc.z - acc_last.z) * (acc.z - acc_last.z));
                 convolved_index++;
+                acc_last = acc;
                 // printf("Accel [m/s^2]: X=%7.3f  Y=%7.3f  Z=%7.3f\n",
                 //     acc.x, acc.y, acc.z);
 
-                if(convolved_index >= 60 * 50){
+                if(convolved_index >= 60 * 100){
                     ESP_LOGI(TAG, "total vector: %.2f",
                                 vector_sum);
-                    // }else {
-                    // }
+                    sensor_data_set_motion(vector_sum);
                     vector_sum = 0.0f;
                     convolved_index = 0;
                 }
@@ -174,7 +166,6 @@ static void max30102_task(void *arg)
     float duration_sec = 0.0f;
     uint32_t hr = 0;
     float spo2_avg = 0.0f;
-    char payload[256];
 
     for(;;) {
         if(xSemaphoreTake(i2c_mutex, portMAX_DELAY) == pdTRUE) {
@@ -194,10 +185,10 @@ static void max30102_task(void *arg)
 
                     spo2_avg = compute_spo2_block(red_block, ir_block, BLOCK_SIZE);
 
-                    // ESP_LOGI("RESULT", "Block (10s) -> HR: %d bpm, SpO2: %.1f%%, Beats: %d",
-                    //             (int)hr, spo2_avg, beats);
-                    // }else {
-                    // }
+                    ESP_LOGI("RESULT", "Block (10s) -> HR: %d bpm, SpO2: %.1f%%, Beats: %d",
+                                (int)hr, spo2_avg, beats);
+                    sensor_data_set_hr(hr);
+                    sensor_data_set_spo2(spo2_avg);
                     // Reset index để block mới
                     block_index = 0;
                     for(int i = 0; i < BLOCK_SIZE; i++) {
@@ -206,7 +197,7 @@ static void max30102_task(void *arg)
                     }
 
                     xSemaphoreGive(i2c_mutex);
-                    vTaskDelay(pdMS_TO_TICKS(10000)); // Chờ 10 giây trước khi thu thập block tiếp theo
+                    vTaskDelay(pdMS_TO_TICKS(5000)); // Chờ 10 giây trước khi thu thập block tiếp theo
                     continue;
                 }
             } else {
@@ -219,82 +210,187 @@ static void max30102_task(void *arg)
 
 }
 
-// static void wifi_watchdog_task(void *arg)
-// {
-//     EventGroupHandle_t eg = wifi_event_group;
-//     bool wifi_was_up   = true;
-//     bool ble_started   = false;
+static void wifi_watchdog_task(void *arg)
+{
+    EventGroupHandle_t eg = wifi_event_group;
+    bool wifi_was_up   = true;
+    bool ble_started   = false;
+    bool mqtt_up       = false;
 
-//     for (;;) {
-//         EventBits_t bits = xEventGroupGetBits(eg);
+    for (;;) {
+        EventBits_t bits = xEventGroupGetBits(eg);
 
-//         if ((bits & WIFI_CONNECTED_BIT) == 0) {
-//             // —— Wi-Fi DOWN ——
-//             if (wifi_was_up) {
-//                 // lần đầu phát hiện rớt, dọn dẹp MQTT + khởi BLE
-//                 ESP_LOGW(TAG, "WiFi lost: deinit MQTT, init BLE");
-//                 if (mqtt_deinit() == ESP_OK) {
-//                     ESP_LOGI(TAG, "mqtt_deinit OK");
-//                 }
-//                 if (ble_init() == ESP_OK) {
-//                     ESP_LOGI(TAG, "ble_init OK");
-//                     ble_started = true;
-//                 }
-//                 wifi_was_up   = false;
-//             }
+        if ((bits & WIFI_CONNECTED_BIT) == 0) {
+            // —— Wi-Fi DOWN ——
+            if (wifi_was_up) {
+                // lần đầu phát hiện rớt, dọn dẹp MQTT + khởi BLE
+                ESP_LOGW(TAG, "WiFi lost: deinit MQTT, init BLE");
+                if (mqtt_deinit() == ESP_OK) {
+                    ESP_LOGI(TAG, "mqtt_deinit OK");
+                }
+                if (ble_app_init() == ESP_OK) {
+                    ESP_LOGI(TAG, "ble_init OK");
+                    ble_started = true;
+                }
+                wifi_was_up   = false;
+                mqtt_up       = false;
+            }
 
-//             // thử reconnect Wi-Fi
-//             ESP_LOGI(TAG, "Watchdog: esp_wifi_connect()");
-//             esp_err_t err = esp_wifi_connect();
-//             if (err != ESP_OK) {
-//                 ESP_LOGE(TAG, "esp_wifi_connect() failed: %d", err);
-//             }
+            // thử reconnect Wi-Fi
+            ESP_LOGI(TAG, "Watchdog: esp_wifi_connect()");
+            if(!wifi_try_connect_list(5000)){
+              ESP_LOGI(TAG, "Connect fail to wifi!");
+            }
 
-//         } else {
-//             // —— Wi-Fi UP ——
-//             if (!wifi_was_up) {
-//                 // lần đầu phát hiện lên lại, dọn BLE + khởi MQTT
-//                 ESP_LOGI(TAG, "WiFi reconnected: deinit BLE, init MQTT");
-//                 if (ble_started && ble_deinit() == ESP_OK) {
-//                     ESP_LOGI(TAG, "ble_deinit OK");
-//                 }
-//                 // Giả sử bạn muốn tự động tái-khởi MQTT:
-//                 if (mqtt_init("mqtt://broker", "client_id", NULL) == ESP_OK) {
-//                     ESP_LOGI(TAG, "mqtt_init OK");
-//                 }
-//                 // reset flags
-//                 ble_started  = false;
-//                 wifi_was_up   = true;
-//             }
-//         }
-
-//         // đợi 60s rồi lặp lại
-//         vTaskDelay(pdMS_TO_TICKS(60000));
-//     }
-// }
-
-
-static void on_ble_conn(uint16_t h) {
-  conn_handle = h;   // gán cho biến riêng của bạn
+        } else {
+            if (mqtt_up) {
+              EventBits_t mqtt_bits = xEventGroupGetBits(mqtt_event_group);
+              if (mqtt_bits & MQTT_CONNECTED_BIT) {
+                ESP_LOGW(TAG, "WiFi OK but MQTT not connected");
+                mqtt_up       = false;
+              }
+            }
+            // —— Wi-Fi UP ——
+            if (!wifi_was_up) {
+                // lần đầu phát hiện lên lại, dọn BLE + khởi MQTT
+                ESP_LOGI(TAG, "WiFi reconnected: deinit BLE, init MQTT");
+                if (ble_started && ble_deinit() == ESP_OK) {
+                    ESP_LOGI(TAG, "ble_deinit OK");
+                }
+                // Giả sử bạn muốn tự động tái-khởi MQTT:
+                if (mqtt_init("mqtt://broker.emqx.io:1883", "client_id", NULL) == ESP_OK) {
+                    ESP_LOGI(TAG, "mqtt_init OK");
+                }
+                // reset flags
+                ble_started  = false;
+                wifi_was_up   = true;
+                mqtt_up      = true;
+            } else if(!mqtt_up){
+                if (mqtt_init("mqtt://broker.emqx.io:1883", "client_id", NULL) == ESP_OK) {
+                    ESP_LOGI(TAG, "mqtt_init OK");
+                }
+                mqtt_up      = true;
+            }
+        }
+        ESP_LOGI(TAG, "Check wifi!");
+        // đợi 60s rồi lặp lại
+        vTaskDelay(pdMS_TO_TICKS(60000));
+    }
 }
 
 
-static void tft_task(void *pvParameters)
+
+
+static void transmit_task(void *pv)
 {
-    // 1) Khởi LCD
-    if (st7789_init() != ESP_OK) {
-        ESP_LOGE(TAG, "TFT init failed");
-        vTaskDelete(NULL);
-    }
+    uint8_t hr;
+    float spo2;
+    float   motion;
+    const char *user_id = "2mrSt8vHRQd6kpPiHjuLobCrwK13";
 
-    // 2) Clear nền đen
-    st7789_fill_screen(0x0000);
+    // Chọn chu kỳ gửi — ví dụ 1s
+    const TickType_t delay_ticks = pdMS_TO_TICKS((1000 * 60) + 1000);
 
-    // 3) Vẽ chữ Hello world (màu trắng)
-    st7789_draw_string(10, 10, "Hello world", 0xFFFF);
-
-    // 4) Giữ nhiệm vụ sống yên, không redraw nữa
     while (1) {
+        // 1) Lấy đồng thời cả 3 giá trị (atomic dưới mutex)
+        if (sensor_data_get_all(&hr, &spo2, &motion) != ESP_OK) {
+            ESP_LOGW(TAG, "Cannot read sensor data");
+            vTaskDelay(delay_ticks);
+            continue;
+        }
+
+        // 2) Kiểm tra Wi-Fi
+        EventBits_t wifi_bits = xEventGroupGetBits(wifi_event_group);
+        if (wifi_bits & WIFI_CONNECTED_BIT) {
+            // 2a) Nếu Wi-Fi OK → kiểm tra MQTT
+            EventBits_t mqtt_bits = xEventGroupGetBits(mqtt_event_group);
+            if (mqtt_bits & MQTT_CONNECTED_BIT) {
+                // Gửi qua MQTT
+                // Nếu bạn đã có các hàm publish riêng, gọi trực tiếp
+                // l80r_data_t current;
+                // l80r_get_data(&current);
+                esp_err_t err;
+                err = mqtt_publish_heart_rate(user_id,hr,75,23, 1);
+                if (err != ESP_OK) {
+                    ESP_LOGW(TAG, "MQTT HR publish failed: %s", esp_err_to_name(err));
+                }
+                err = mqtt_publish_spo2(user_id,spo2);
+                if (err != ESP_OK) {
+                    ESP_LOGW(TAG, "MQTT SpO2 publish failed: %s", esp_err_to_name(err));
+                }
+                err = mqtt_publish_accelerometer(user_id, motion, 75, 1);
+                if (err != ESP_OK) {
+                    ESP_LOGW(TAG, "MQTT Motion publish failed: %s", esp_err_to_name(err));
+                }
+                // err = mqtt_publish_gps("user123", current.latitude, current.longitude, current.altitude);
+                // if(err != ESP_OK){
+                //     ESP_LOGW(TAG, "MQTT GPS publish failed: %s", esp_err_to_name(err));
+                // }
+            } else {
+                ESP_LOGW(TAG, "WiFi OK but MQTT not connected");
+                // Có thể trigger reconnect hoặc log, tuỳ bạn
+            }
+        } else {
+            // 2b) Nếu không có Wi-Fi → gửi qua BLE advertising
+            // Bạn cần convert 3 giá trị vào 1 mảng bytes
+            // Ví dụ: [hr(1B), spo2(4B), motion(4B float little-endian)]
+            uint8_t buf[9];
+            buf[0] = hr;
+            // buf[1] = spo2;
+            // memcopy float vào buf[1..4]
+            memcpy(&buf[1], &spo2, sizeof(spo2));
+            // memcopy float vào buf[5..8]
+            memcpy(&buf[5], &motion, sizeof(motion));
+
+            if (update_service_data(buf, sizeof(buf)) != ESP_OK) {
+                ESP_LOGW(TAG, "BLE adv update failed");
+            }
+            // BLE advertising phải đã start sẵn ở init, bạn chỉ cần update payload
+        }
+
+        vTaskDelay(delay_ticks);
+    }
+}
+
+
+static void display_task(void *pvParameter)
+{
+    uint8_t hr     = 0;
+    float   spo2   = 0.0f;
+    float   motion = 0.0f;
+    char    buf[32];
+
+    for (;;)
+    {
+        if (sensor_data_get_all(&hr, &spo2, &motion) == ESP_OK) {
+            // Chờ lấy mutex trong tối đa 100ms
+            if (xSemaphoreTake(i2c_mutex, pdMS_TO_TICKS(100)) == pdTRUE) {
+                // Các thao tác I2C với OLED
+                ssd1306_clear();
+
+                snprintf(buf, sizeof(buf), "HR: %3u bpm", hr);
+                ssd1306_draw_string(0, 0, buf);
+
+                snprintf(buf, sizeof(buf), "SpO2:%.1f%%", spo2);
+                ssd1306_draw_string(0, 2, buf);
+
+                snprintf(buf, sizeof(buf), "Motion:%.2f", motion);
+                ssd1306_draw_string(0, 4, buf);
+
+                ssd1306_refresh();
+
+                xSemaphoreGive(i2c_mutex);
+            } else {
+                ESP_LOGW(TAG, "Could not take i2c_mutex");
+            }
+        } else {
+            ESP_LOGE(TAG, "sensor_data_get_all failed");
+        }
+
         vTaskDelay(pdMS_TO_TICKS(1000));
     }
 }
+
+
+
+

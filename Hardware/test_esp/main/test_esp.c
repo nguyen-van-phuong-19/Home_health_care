@@ -7,6 +7,7 @@
 #include "sensor_data.h"
 #include "wifi_pr.h"
 #include <stdbool.h>
+#include "ssd1306_oled.h"
 // #include "ble_store.h"
 
 
@@ -47,37 +48,46 @@ static float vector_sum = 0.0f;
 
 void app_main(void)
 {
-    wifi_init_sta();
 
-    if(!wifi_try_connect_list(5000)){
-      ESP_LOGI(TAG, "Connect fail to wifi!");
-    }
+    // ssd1306_init();
+    // ssd1306_clear();
+    // ssd1306_draw_string(0, 0, "Hello, OLED!");
+    // ssd1306_refresh();
+
+
+
+
+    // wifi_init_sta();
+    //
+    // if(!wifi_try_connect_list(5000)){
+    //   ESP_LOGI(TAG, "Connect fail to wifi!");
+    // }
 
 
     // 2) Khởi tạo LIS2DH12TR
     ESP_ERROR_CHECK(i2c_master_init());
-    ESP_ERROR_CHECK(lis2dh12_init());
+    // ESP_ERROR_CHECK(lis2dh12_init());
     ESP_ERROR_CHECK(max30102_init());
     ESP_LOGI("MAIN", "I2C initialized");
 
-    l80r_init();
+    // l80r_init();
     // // Create I2C mutex (with priority inheritance)
     i2c_mutex = xSemaphoreCreateMutex();
     configASSERT(i2c_mutex);
 
     ESP_ERROR_CHECK(sensor_data_init());
 
-    BaseType_t r;
+    // BaseType_t r;
 
-    xTaskCreateStatic(
-        lis2dh12_task,      // hàm task
-        "lis2dh12_task",    // tên task
-        LIS2DH12_TASK_STACK_SIZE,               // stack size (bytes)
-        NULL,               // tham số truyền vào
-        LIS2DH12_TASK_PRIORITY,
-        lis2dh12_stack,
-        &lis2dh12_tcb
-    );
+    // xTaskCreateStatic(
+    //     lis2dh12_task,      // hàm task
+    //     "lis2dh12_task",    // tên task
+    //     LIS2DH12_TASK_STACK_SIZE,               // stack size (bytes)
+    //     NULL,               // tham số truyền vào
+    //     LIS2DH12_TASK_PRIORITY,
+    //     lis2dh12_stack,
+    //     &lis2dh12_tcb
+    // );
 
     xTaskCreateStatic(
         max30102_task,      // hàm task
@@ -89,29 +99,29 @@ void app_main(void)
         &max30102_tcb
     );
 
-    xTaskCreateStatic(
-        wifi_watchdog_task,         // entry fn
-        "wifi_watchdog",            // name
-        WIFI_WD_STACK_SIZE,         // stack depth (words)
-        NULL,                       // param
-        WIFI_WATCHDOG_TASK_PRIORITY,       // priority
-        wifiWdStack,                // stack buffer
-        &wifiWdTCB                  // TCB buffer
-    );
-
-    r = xTaskCreate(
-        transmit_task,
-        "transmit",
-        4*1024,
-        NULL,
-        TRANSMIT_TASK_PRIORITY,  // ưu tiên cao hơn các task thu thập dữ liệu
-        NULL
-    );
-    if (r != pdPASS) {
-        ESP_LOGE(TAG, "Failed to create transmit_task");
-    }
-
-    xTaskCreate(l80r_task, "l80r_task", 4096, NULL, 5, NULL);
+    // xTaskCreateStatic(
+    //     wifi_watchdog_task,         // entry fn
+    //     "wifi_watchdog",            // name
+    //     WIFI_WD_STACK_SIZE,         // stack depth (words)
+    //     NULL,                       // param
+    //     WIFI_WATCHDOG_TASK_PRIORITY,       // priority
+    //     wifiWdStack,                // stack buffer
+    //     &wifiWdTCB                  // TCB buffer
+    // );
+    //
+    // r = xTaskCreate(
+    //     transmit_task,
+    //     "transmit",
+    //     4*1024,
+    //     NULL,
+    //     TRANSMIT_TASK_PRIORITY,  // ưu tiên cao hơn các task thu thập dữ liệu
+    //     NULL
+    // );
+    // if (r != pdPASS) {
+    //     ESP_LOGE(TAG, "Failed to create transmit_task");
+    // }
+    //
+    // xTaskCreate(l80r_task, "l80r_task", 4096, NULL, 5, NULL);
 
 }
 

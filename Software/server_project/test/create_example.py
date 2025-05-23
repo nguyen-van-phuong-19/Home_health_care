@@ -89,5 +89,5 @@ def generate_sample_data(user_id: str, days: int = 10):
 
 if __name__ == '__main__':
     initialize_firebase()
-    generate_sample_data('user123')
-    print("Đã tạo xong 10 bản ghi mẫu cho user123.")
+    generate_sample_data('2mrSt8vHRQd6kpPiHjuLobCrwK13')
+    print("Đã tạo xong 10 bản ghi mẫu cho 2mrSt8vHRQd6kpPiHjuLobCrwK13.")

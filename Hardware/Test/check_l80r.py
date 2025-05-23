@@ -28,22 +28,11 @@ def check_l80r(port, baud=9600, read_timeout=1.0, pmtk_timeout=0.5):
             nmea_alive = True
             break
 
-    # 2. Gửi lệnh PMTK và chờ phản hồi
-    pmtk_cmd = b'$PMTK605*31\r\n'
-    print("Gửi lệnh PMTK để lấy firmware version...")
-    ser.write(pmtk_cmd)
-    time.sleep(pmtk_timeout)
-    resp = ser.read(128).decode('ascii', errors='ignore').strip()
-    pmtk_alive = False
-    if resp:
-        print(f"[PMTK RESP] {resp}")
-        if '$PMTK705' in resp:
-            pmtk_alive = True
 
     ser.close()
 
     # Đánh giá kết quả
-    if nmea_alive or pmtk_alive:
+    if nmea_alive:
         print("✅ Module L80-R đang hoạt động.")
         return True
     else:

@@ -5,7 +5,15 @@ static const char *TAG = "wifi_pr";
 
 // Event group để chờ kết nối
 EventGroupHandle_t wifi_event_group;
+const int WIFI_CONNECTED_BIT = BIT0;
 static int retry_count;
+
+
+const wifi_ap_t wifi_list[] = {
+    { "102",   "121111111"   },
+    { "nguyen_phuong", "00000000" },
+};
+const size_t wifi_list_count = sizeof(wifi_list)/sizeof(wifi_list[0]);
 
 // Xử lý sự kiện Wi-Fi và IP
 static void wifi_event_handler(void* arg, esp_event_base_t base,
@@ -29,7 +37,7 @@ static void wifi_event_handler(void* arg, esp_event_base_t base,
     }
 }
 
-void wifi_init_sta(const char* ssid, const char* password)
+void wifi_init_sta(void)
 {
     // 1. Init NVS, TCP/IP, event loop
     nvs_flash_init();
@@ -49,28 +57,48 @@ void wifi_init_sta(const char* ssid, const char* password)
 
     // 4. Tạo event group
     wifi_event_group = xEventGroupCreate();
+
     retry_count = 0;
 
-    // 5. Cấu hình SSID/Password
-    wifi_config_t wc = {0};
-    strncpy((char*)wc.sta.ssid, ssid, sizeof(wc.sta.ssid)-1);
-    strncpy((char*)wc.sta.password, password, sizeof(wc.sta.password)-1);
-
     esp_wifi_set_mode(WIFI_MODE_STA);
-    esp_wifi_set_config(WIFI_IF_STA, &wc);
     esp_wifi_start();
-    ESP_LOGI(TAG, "Connecting to %s", ssid);
+}
 
-    // 6. Chờ kết nối (10s)
-    EventBits_t bits = xEventGroupWaitBits(wifi_event_group,
-                                          WIFI_CONNECTED_BIT,
-                                          pdFALSE, pdTRUE,
-                                          pdMS_TO_TICKS(10000));
-    if (bits & WIFI_CONNECTED_BIT) {
-        ESP_LOGI(TAG, "Connected");
-    } else {
-        ESP_LOGE(TAG, "Timeout");
+bool wifi_try_connect_list(TickType_t timeout_ms)
+{
+    for (size_t i = 0; i < wifi_list_count; ++i) {
+        // 1) Clear bit trước khi thử
+        xEventGroupClearBits(wifi_event_group, WIFI_CONNECTED_BIT);
+
+        retry_count = 1;
+        // 2) Cấu hình SSID/PASS
+        wifi_config_t cfg = { 0 };
+        strncpy((char*)cfg.sta.ssid,     wifi_list[i].ssid,     sizeof(cfg.sta.ssid)-1);
+        strncpy((char*)cfg.sta.password, wifi_list[i].password, sizeof(cfg.sta.password)-1);
+        esp_wifi_set_config(ESP_IF_WIFI_STA, &cfg);
+
+        // 3) Nếu đang connect rồi thì disconnect
+        esp_wifi_disconnect();
+        // 4) Gọi connect (dùng config vừa set)
+        esp_wifi_connect();
+
+        ESP_LOGI(TAG, "Trying to connect to '%s' …", wifi_list[i].ssid);
+
+        // 5) Chờ event BIT trong timeout
+        EventBits_t bits = xEventGroupWaitBits(
+            wifi_event_group,
+            WIFI_CONNECTED_BIT,
+            pdFALSE, pdTRUE,
+            pdMS_TO_TICKS(timeout_ms)
+        );
+        if (bits & WIFI_CONNECTED_BIT) {
+            ESP_LOGI(TAG, "Connected to '%s'", wifi_list[i].ssid);
+            return true;
+        }
+        ESP_LOGW(TAG, "Failed to connect to '%s'", wifi_list[i].ssid);
     }
+    ESP_LOGE(TAG, "Không kết nối được AP nào!");
+    return false;
 }
 
 void wifi_stop(void)

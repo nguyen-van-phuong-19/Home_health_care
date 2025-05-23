@@ -10,7 +10,7 @@ static int retry_count;
 
 
 const wifi_ap_t wifi_list[] = {
-    { "102",   "11111111"   },
+    { "102",   "121111111"   },
     { "nguyen_phuong", "00000000" },
 };
 const size_t wifi_list_count = sizeof(wifi_list)/sizeof(wifi_list[0]);

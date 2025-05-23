@@ -22,14 +22,14 @@ extern "C" {
 #include "esp_nimble_hci.h"
 #include "nimble/nimble_port_freertos.h"
 #include "host/ble_hs.h"
-#include "esp_system.h"
-#include "st7789_lcd.h"
+#include "sensor_data.h"
+#include <stdint.h>
 
 
 // I2C configuration cho ESP32-S3-N16R8 (sử dụng chân phù hợp với board của bạn)
 #define I2C_MASTER_SDA_IO           14
 #define I2C_MASTER_SCL_IO           13
-#define I2C_MASTER_NUM              I2C_NUM_0
+#define I2C_MASTER_NUM              I2C_NUM_1
 #define I2C_MASTER_FREQ_HZ          100000  // 100 kHz để ổn định
 #define I2C_MASTER_TIMEOUT_MS       1000
 
@@ -61,7 +61,7 @@ extern "C" {
 // Các thông số hiệu chuẩn cho thuật toán phát hiện nhịp và SpO2
 #define PEAK_THRESHOLD 3000.0f  // Ngưỡng tối thiểu của filtered signal để xác định đỉnh
 // Các hằng số hiệu chuẩn cho SpO2 (đề xuất dựa trên dữ liệu tham chiếu từ người khỏe mạnh)
-#define CAL_A 115.0f
+#define CAL_A 132.0f   
 #define CAL_B 15.0f
 
 

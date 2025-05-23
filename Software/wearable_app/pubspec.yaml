@@ -54,6 +54,7 @@ dependencies:
     sdk: flutter
   firebase_ui_localizations: ^1.13.1
   firebase_core:        ^2.20.0
+  flutter_ble_peripheral: ^1.2.6
 
 dependency_overrides:
   firebase_auth_platform_interface: 7.3.0

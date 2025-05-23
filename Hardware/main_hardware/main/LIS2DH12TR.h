@@ -10,6 +10,7 @@ extern "C" {
 #include "driver/i2c.h"
 #include "esp_log.h"
 #include "mqtt_cl.h"
+#include "main.h"
 
 // I2C address (SA0 = 1)
 #define LIS2DH12_ADDR        0x19
@@ -18,12 +19,6 @@ extern "C" {
 #define REG_CTRL1            0x20
 #define REG_CTRL4            0x23
 #define REG_OUTX_L           0x28  // auto-increment up to 0x2D
-
-#define I2C_MASTER_SDA_IO           14
-#define I2C_MASTER_SCL_IO           13
-#define I2C_MASTER_NUM              I2C_NUM_0
-#define I2C_MASTER_FREQ_HZ          100000  // 100 kHz để ổn định
-#define I2C_MASTER_TIMEOUT_MS       1000
 
 #define GRAVITY_MS2          9.80665f
 

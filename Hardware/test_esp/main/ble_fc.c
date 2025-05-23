@@ -2,14 +2,66 @@
 
 #include "esp_err.h"
 #include "esp_log.h"
+#include "host/ble_gap.h"
 #include "nvs_flash.h"
 #include "nimble/nimble_port.h"
 #include "nimble/nimble_port_freertos.h"
 #include "host/ble_hs.h"
 #include "services/gap/ble_svc_gap.h"
 #include <string.h>
+#include "host/ble_hs_adv.h"    // cho ble_hs_adv_parse_fields
+
 
 static const char *TAG = "BLE_FC";
+
+void start_one_shot_scan(uint32_t duration_ms);
+
+// Tham số quét (scan) nhanh
+static const struct ble_gap_disc_params disc_params = {
+    .itvl           = BLE_GAP_SCAN_FAST_INTERVAL_MIN,  // khoảng cách giữa các lần quét
+    .window         = BLE_GAP_SCAN_FAST_WINDOW,        // thời gian mở cửa quét
+    .filter_policy  = BLE_HCI_SCAN_FILT_NO_WL,         // không lọc theo whitelist
+    .passive        = 0,                               // active scan (yêu cầu scan response)
+};
+
+// Callback xử lý các sự kiện GAP, trong đó có sự kiện DISC (khi quét thấy quảng bá)
+static int
+ble_gap_event_cb(struct ble_gap_event *event, void *arg)
+{
+    switch (event->type) {
+        case BLE_GAP_EVENT_DISC: {
+            struct ble_hs_adv_fields fields;
+            int rc = ble_hs_adv_parse_fields(
+                &fields,
+                event->disc.data,
+                event->disc.length_data
+            );
+            if (rc != 0) {
+                ESP_LOGE(TAG, "adv_parse_fields failed; rc=%d", rc);
+                break;
+            }
+
+            if (fields.mfg_data_len > 0) {
+                const uint8_t *mac = event->disc.addr.val;
+                // ESP_LOGI(TAG,
+                //          "Found MfgData from %02x:%02x:%02x:%02x:%02x:%02x, len=%u",
+                //          mac[5], mac[4], mac[3],
+                //          mac[2], mac[1], mac[0],
+                //          fields.mfg_data_len);
+                // ESP_LOG_BUFFER_HEX(
+                //     TAG,
+                //     fields.mfg_data,
+                //     fields.mfg_data_len
+                // );
+            }
+            break;
+        }
+
+        default:
+            break;
+    }
+    return 0;
+}
 
 // 128-bit Service UUID (little-endian)
 #define SVC_UUID_BYTES   \
@@ -78,7 +130,7 @@ static void ble_on_sync(void) {
     adv_params.disc_mode    = BLE_GAP_DISC_MODE_GEN;
     adv_params.itvl_min     = 0x20; // ~20ms
     adv_params.itvl_max     = 0x40; // ~40ms
-    adv_params.channel_map  = 0;
+    adv_params.channel_map   = BLE_HCI_ADV_CHANMASK_DEF;
     adv_params.filter_policy= BLE_HCI_ADV_FILT_DEF;
 
     uint8_t own_addr_type;
@@ -89,7 +141,7 @@ static void ble_on_sync(void) {
     }
 
     rc = ble_gap_adv_start(own_addr_type, NULL, BLE_HS_FOREVER,
-                           &adv_params, NULL, NULL);
+                           &adv_params, ble_gap_event_cb, NULL);
     if (rc) {
         ESP_LOGE(TAG, "ble_gap_adv_start error: %d", rc);
     } else {
@@ -139,6 +191,31 @@ esp_err_t update_service_data(const uint8_t *data, uint8_t len) {
     } else {
         ESP_LOGI(TAG, "Manufacturer Data updated len=%d", len);
     }
+ /* 2) Dừng quảng bá */
+    rc = ble_gap_adv_stop();
+    if (rc != 0) {
+        ESP_LOGE(TAG, "ble_gap_adv_stop rc=%d", rc);
+        // Có thể vẫn tiếp tục, nhưng tốt nhất là return
+        return rc;
+    }
+
+    /* 3) Khởi động lại quảng bá với adv_params cũ */
+    rc = ble_gap_adv_start(
+        BLE_OWN_ADDR_PUBLIC,
+        NULL,
+        BLE_HS_FOREVER,
+        &adv_params,
+        ble_gap_event_cb,
+        NULL
+    );
+    if (rc != 0) {
+        ESP_LOGE(TAG, "ble_gap_adv_start rc=%d", rc);
+    } else {
+        ESP_LOGI(TAG, "Advertising restarted with new MfgData");
+    }
+
+    /* 4) Quét 1 lần như trước */
+    start_one_shot_scan(500);  // scan 500 ms
     return ESP_OK;
 }
 
@@ -192,4 +269,31 @@ esp_err_t ble_deinit(void) {
         ESP_LOGI(TAG, "NVS flash deinitialized");
     }
     return ESP_OK;
+}
+
+
+// 2) Thêm hàm on-demand scan:
+void start_one_shot_scan(uint32_t duration_ms)
+{
+    int rc;
+    uint8_t own_addr_type;
+
+    rc = ble_hs_id_infer_auto(0, &own_addr_type);
+    if (rc) {
+        ESP_LOGE(TAG, "ble_hs_id_infer_auto error: %d", rc);
+        return;
+    }
+
+    rc = ble_gap_disc(
+        own_addr_type,
+        duration_ms,
+        &disc_params,
+        ble_gap_event_cb,
+        NULL
+    );
+    if (rc) {
+        ESP_LOGE(TAG, "One-shot scan failed; rc=%d", rc);
+    } else {
+        ESP_LOGI(TAG, "One-shot scan started (%u ms)", (unsigned)duration_ms);
+    }
 }

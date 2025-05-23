@@ -16,11 +16,21 @@ extern "C" {
 #include "esp_wifi.h"
 #include "esp_netif.h"
 
-#define WIFI_CONNECTED_BIT BIT0
-#define WIFI_MAX_RETRY     5
+extern EventGroupHandle_t wifi_event_group;
+
+extern const int WIFI_CONNECTED_BIT;
+#define WIFI_MAX_RETRY     3
 
 // Biến event group được khởi tạo trong wifi_pr.c, có thể extern ra để test_esp.c sử dụng
-extern EventGroupHandle_t wifi_event_group;
+
+typedef struct {
+    const char *ssid;
+    const char *password;
+} wifi_ap_t;
+
+
+extern const wifi_ap_t wifi_list[];
+extern const size_t    wifi_list_count;
 
 typedef void (*wifi_error_handler_t)(void);
 
@@ -28,10 +38,12 @@ typedef void (*wifi_error_handler_t)(void);
 void wifi_set_error_handler(wifi_error_handler_t cb);
 
 // Khởi STA (client) với SSID/Password
-void wifi_init_sta(const char* ssid, const char* password);
+void wifi_init_sta(void);
 
 // Khởi SoftAP với SSID/Password (nếu cần)
 void wifi_init_softap(const char* ssid, const char* password);
+
+bool wifi_try_connect_list(TickType_t timeout_ms);
 
 // Dừng Wi-Fi
 void wifi_stop(void);

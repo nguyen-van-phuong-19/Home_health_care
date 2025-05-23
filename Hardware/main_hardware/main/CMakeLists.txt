@@ -4,8 +4,8 @@ idf_component_register(SRCS "main_hardware.c"
                     "wifi_pr.c"
                     "ble_fc.c"
                     "mqtt_cl.c"
-                    "st7789_lcd.c"
-                    "glcdfont.c"
+                    "sensor_data.c"
+                    "ssd1306_oled.c"
                     INCLUDE_DIRS "."
                     REQUIRES bt                  # <— pull in esp_bt_main.h and friends
                         driver
@@ -17,4 +17,7 @@ idf_component_register(SRCS "main_hardware.c"
                         freertos      # for FreeRTOS headers
                         log           # for esp_log.h
                         mqtt
+                        sdmmc 
+                        esp_lcd
+                        fatfs
                     )

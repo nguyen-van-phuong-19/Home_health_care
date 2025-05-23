@@ -6,6 +6,8 @@ idf_component_register(SRCS "test_esp.c"
                     "mqtt_cl.c"
                     "sensor_data.c"
                     "l80r_process.c"
+                    "ssd1306_oled.c"
+                    # "roboto_12pt.c"
                     INCLUDE_DIRS "."
                     REQUIRES bt                  # <— pull in esp_bt_main.h and friends
                         driver
@@ -16,5 +18,6 @@ idf_component_register(SRCS "test_esp.c"
                         esp_system    # for system APIs
                         freertos      # for FreeRTOS headers
                         log           # for esp_log.h
+                        esp_lcd
                         mqtt
                     )

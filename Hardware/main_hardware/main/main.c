@@ -141,34 +141,67 @@ int count_beats_in_convolved(float *data, int length, float sample_interval_sec,
     return beat_count;
 }
 
-//------------------------------------------------------------------------------
-// Tính HR và SpO2 dựa trên toàn bộ block
-// Đối với SpO2: tính DC (trung bình) và AC (=(max-min)/2) cho từng kênh, sau đó
-// Tỉ số R = (AC_red/DC_red) / (AC_ir/DC_ir) và công thức: SpO2 = CAL_A - CAL_B * R
-float compute_spo2_block(uint32_t *red_data, uint32_t *ir_data, int length) {
-    uint32_t red_dc = 0, ir_dc = 0;
-    uint32_t red_max = red_data[0], red_min = red_data[0];
-    uint32_t ir_max = ir_data[0], ir_min = ir_data[0];
-    for (int i = 0; i < length; i++) {
-        red_dc += red_data[i];
-        ir_dc  += ir_data[i];
-        if(red_data[i] > red_max) red_max = red_data[i];
-        if(red_data[i] < red_min) red_min = red_data[i];
-        if(ir_data[i] > ir_max) ir_max = ir_data[i];
-        if(ir_data[i] < ir_min) ir_min = ir_data[i];
+static inline float clampf(float v, float lo, float hi) {
+    return (v < lo) ? lo : (v > hi) ? hi : v;
+}
+
+/* --------------------------------------------------------------------------
+ *  Compute SpO2 for a block of samples
+ *  Algorithm (Maxim reference):
+ *    DC  = mean
+ *    AC  = RMS-deviation
+ *    R   = (AC_red/DC_red) / (AC_ir/DC_ir)
+ *    If R > 1.0  ⇒  assume channels swapped → R = 1 / R
+ *    SpO2 = -45.060·R² + 30.354·R + 94.845   (valid 0.3–1.2)
+ *    Fallback tuyến tính nhẹ ngoài dải
+ * -------------------------------------------------------------------------- */
+float compute_spo2_block(uint32_t *red_data,
+                         uint32_t *ir_data,
+                         int length)
+{
+    if (length < 4)           // block quá ngắn
+        return -1.0f;
+
+    /* ---------- 1. DC (mean) ---------- */
+    double red_sum = 0.0, ir_sum = 0.0;
+    for (int i = 0; i < length; ++i) {
+        red_sum += red_data[i];
+        ir_sum  += ir_data[i];
     }
-    red_dc /= length;
-    ir_dc  /= length;
-    
-    float red_ac = ((float)red_max - (float)red_min) / 2.0f;
-    float ir_ac = ((float)ir_max - (float)ir_min) / 2.0f;
-    
-    if(red_dc == 0 || ir_dc == 0 || ir_ac == 0)
-        return 0.0f;
-    
-    float R = (red_ac / red_dc) / (ir_ac / ir_dc);
-    float spo2 = CAL_A - CAL_B * R;
-    if(spo2 > 100.0f) spo2 = 100.0f;
-    if(spo2 < 0.0f) spo2 = 0.0f;
-    return spo2;
+    const double red_dc = red_sum / length;
+    const double ir_dc  = ir_sum  / length;
+    if (red_dc < 1.0 || ir_dc < 1.0)
+        return -1.0f;
+
+    /* ---------- 2. AC (RMS-deviation) ---------- */
+    double red_var = 0.0, ir_var = 0.0;
+    for (int i = 0; i < length; ++i) {
+        red_var += (red_data[i] - red_dc) * (red_data[i] - red_dc);
+        ir_var  += (ir_data[i]  - ir_dc)  * (ir_data[i]  - ir_dc);
+    }
+    red_var /= length;
+    ir_var  /= length;
+    const double red_ac = sqrt(red_var);
+    const double ir_ac  = sqrt(ir_var);
+    if (ir_ac < 1e-6)
+        return -1.0f;
+
+    /* ---------- 3. Ratio R ---------- */
+    double R = (red_ac / red_dc) / (ir_ac / ir_dc);
+
+    /* Giả thuyết nhầm kênh: nếu R > 1 thì đảo lại */
+    if (R > 1.0)
+        R = 1.0 / R;
+
+    R = clampf((float)R, 0.10f, 3.00f);
+
+    /* ---------- 4. SpO2 ---------- */
+    double spo2;
+    if (R >= 0.3 && R <= 1.2) {
+        spo2 = -45.060 * R * R + 30.354 * R + 94.845;
+    } else {
+        spo2 = 110.0 - 25.0 * R;
+    }
+    spo2 = clampf((float)spo2, 0.0f, 99.8f);
+    return (float)spo2;
 }
