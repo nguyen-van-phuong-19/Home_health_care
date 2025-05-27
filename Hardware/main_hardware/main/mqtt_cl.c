@@ -38,7 +38,13 @@ static esp_err_t _mqtt_event_handler_cb(esp_mqtt_event_handle_t event) {
                 float sleep_hours;
                 if (parse_sleep_duration(event->data, event->data_len, &sleep_hours)) {
                     ESP_LOGI(TAG, "Parsed sleep_duration = %.2f hours", sleep_hours);
-                    sensor_data_set_sleep_hours(sleep_hours);
+                    if(sleep_hours == 0.0){
+                        set_new_day();
+                    } else if (sleep_hours > 0 && sleep_hours < 24) {
+                        sensor_data_set_sleep_hours(sleep_hours);
+                    } else if (sleep_hours >= 24){
+                        sensor_data_set_sleep_hours(0.0);
+                    }
                     // TODO: lưu hoặc xử lý sleep_hours tại đây
                 } else {
                     ESP_LOGW(TAG, "Failed to parse sleep_duration");
@@ -158,7 +164,7 @@ esp_err_t mqtt_publish_gps(const char* user_id,
 }
 
 
-void mqtt_publish_calories(void) {
+void mqtt_publish_calories(const char* user_id) {
     float cal_hr = 0.0f;
     float cal_motion = 0.0f;
     float cal_total = 0.0f;
@@ -174,8 +180,8 @@ void mqtt_publish_calories(void) {
     // Tạo payload JSON
     char payload[128];
     int len = snprintf(payload, sizeof(payload),
-                       "{\"cal_hr\":%.2f,\"cal_motion\":%.2f,\"cal_total\":%.2f}",
-                       cal_hr, cal_motion, cal_total);
+                       "{\"user_id\":\"%s\",\"cal_hr\":%.2f,\"cal_motion\":%.2f,\"cal_total\":%.2f}",
+                       user_id,cal_hr, cal_motion, cal_total);
     if (len < 0 || len >= sizeof(payload)) {
         ESP_LOGE(TAG, "Payload formatting error");
         return;

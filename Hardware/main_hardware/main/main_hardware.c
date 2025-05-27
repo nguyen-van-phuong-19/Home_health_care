@@ -70,7 +70,7 @@ void app_main(void)
     configASSERT(i2c_mutex);
 
     ESP_ERROR_CHECK(sensor_data_init());
-    // ESP_ERROR_CHECK(sensor_data_load_calories_nvs());
+    ESP_ERROR_CHECK(sensor_data_load_calories_nvs());
 
     ssd1306_clear();
     ssd1306_draw_string(0, 0, "Hello, OLED!");
@@ -147,7 +147,7 @@ static void lis2dh12_task(void *arg)
             if (lis2dh12_get_vector(&acc) == ESP_OK) {
                 // Giả sử acc.x, acc.y, acc.z đã là m/s²
                 float mag = sqrtf(acc.x*acc.x + acc.y*acc.y + acc.z*acc.z);
-                a_dyn = mag -g;
+                a_dyn = mag - g;
                 if (a_dyn < 0) a_dyn = 0;  // khi không di chuyển, bỏ qua
                 vector_sum += a_dyn * dt_s;
                 total_time_s  += dt_s;
@@ -162,6 +162,7 @@ static void lis2dh12_task(void *arg)
                     sensor_data_update_daily_calories(23, 73, 0, total_time_s, &daily_total);
                     vector_sum = 0.0f;
                     convolved_index = 0;
+                    total_time_s = 0;
                 }
             } else {
                 ESP_LOGE(TAG, "LIS2DH12TR read failed");
@@ -317,8 +318,8 @@ static void transmit_task(void *pv)
         }
         count_write_nvs++;
 
-        if(count_write_nvs == 4){
-          // sensor_data_save_calories_nvs();
+        if(count_write_nvs == 3){
+          sensor_data_save_calories_nvs();
           count_write_nvs = 0;
         }
 
@@ -345,7 +346,7 @@ static void transmit_task(void *pv)
                 if (err != ESP_OK) {
                     ESP_LOGW(TAG, "MQTT Motion publish failed: %s", esp_err_to_name(err));
                 }
-                mqtt_publish_calories();
+                mqtt_publish_calories(user_id);
             } else {
                 ESP_LOGW(TAG, "WiFi OK but MQTT not connected");
                 // Có thể trigger reconnect hoặc log, tuỳ bạn

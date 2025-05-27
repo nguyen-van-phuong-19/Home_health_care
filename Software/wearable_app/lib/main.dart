@@ -38,6 +38,11 @@ Future<void> main() async {
   await MQTTService().connect();
   final webId = await _loadGoogleWebClientId();
 
+  await LocationPublisher.instance.startPeriodic(
+    FirebaseAuth.instance.currentUser!.uid,
+    intervalMinutes: 1,
+  );
+
   runApp(MyApp(googleClientId: webId));
 }
 
@@ -87,6 +92,9 @@ class _BleInitializerState extends State<BleInitializer> {
   late int hrLast;
   late double spo2Last;
   late double motionLast;
+  late double cl_hr;
+  late double cl_total;
+  late double cl_motion;
 
   @override
   void initState() {
@@ -94,6 +102,9 @@ class _BleInitializerState extends State<BleInitializer> {
     hrLast = 0;
     spo2Last = 0;
     motionLast = 0;
+    cl_hr = 0;
+    cl_total = 0;
+    cl_motion = 0;
     print(FirebaseAuth.instance.currentUser?.uid);
     print(FirebaseAuth.instance.currentUser?.uid);
     print(FirebaseAuth.instance.currentUser?.uid);
@@ -106,8 +117,16 @@ class _BleInitializerState extends State<BleInitializer> {
       final hr = bd.getUint8(0);
       final spo2 = bd.getFloat32(1, Endian.little);
       final motion = bd.getFloat32(5, Endian.little);
+      final calo_hr = bd.getFloat32(9, Endian.little);
+      final calo_motion = bd.getFloat32(13, Endian.little);
+      final calo_total = bd.getFloat32(17, Endian.little);
 
-      if (hr == hrLast && spo2 == spo2Last && motion == motionLast) {
+      if (hr == hrLast &&
+          spo2 == spo2Last &&
+          motion == motionLast &&
+          calo_hr == cl_hr &&
+          calo_total == cl_total &&
+          calo_motion == cl_motion) {
         return;
       }
 
@@ -119,16 +138,15 @@ class _BleInitializerState extends State<BleInitializer> {
         hrLast = hr;
         spo2Last = spo2;
         motionLast = motion;
+        cl_hr = calo_hr;
+        cl_total = calo_total;
+        cl_motion = calo_motion;
       });
 
       print(
-        'HR: $hr, SpO2: ${spo2.toStringAsFixed(2)}, Motion: ${motion.toStringAsFixed(2)}',
+        'HR: $hr, SpO2: ${spo2.toStringAsFixed(2)}, Motion: ${motion.toStringAsFixed(2)},\nCalo HR: ${calo_hr.toStringAsFixed(2)}, Calo Total: ${calo_total.toStringAsFixed(2)}, Calo Motion: ${calo_motion.toStringAsFixed(2)}',
       );
-      _publishBleData(hr, spo2, motion);
-      await LocationPublisher.instance.startPeriodic(
-        FirebaseAuth.instance.currentUser!.uid,
-        intervalMinutes: 1,
-      );
+      _publishBleData(hr, spo2, motion, calo_hr, calo_total, calo_motion);
     };
 
     BleService.instance.start(FirebaseAuth.instance.currentUser?.uid);
@@ -143,7 +161,14 @@ class _BleInitializerState extends State<BleInitializer> {
   /// [motion] là số gia tốc
   ///
   /// Returns [Future<void>] là promise cho việc gửi dữ liệu
-  Future<void> _publishBleData(int hr, double spo2, double motion) async {
+  Future<void> _publishBleData(
+    int hr,
+    double spo2,
+    double motion,
+    double caloHr,
+    double caloTotal,
+    double caloMotion,
+  ) async {
     // Lấy userId từ chỗ bạn lưu (ví dụ SharedPreferences, Auth service, v.v.)
     final String userId = await _getCurrentUserId();
 
@@ -170,12 +195,20 @@ class _BleInitializerState extends State<BleInitializer> {
       epochMinutes: epochMinutes,
     );
 
+    final caloriesTopic = CaloriesTopic(
+      userId: userId,
+      caloHr: double.parse(caloHr.toStringAsFixed(2)),
+      caloTotal: double.parse(caloTotal.toStringAsFixed(2)),
+      caloMotion: double.parse(caloMotion.toStringAsFixed(2)),
+    );
+
     // 2.4 Gửi lên broker
     final mqtt = ProcessMqttService.instance;
     try {
       await mqtt.sendHeartRate(hrTopic);
       await mqtt.sendSpO2(spo2Topic);
       await mqtt.sendAccelerometer(accelTopic);
+      await mqtt.sendCalories(caloriesTopic);
     } catch (e) {
       // Xử lý lỗi network/MQTT ở đây
       print('❌ Lỗi khi publish MQTT: $e');

@@ -70,7 +70,7 @@ esp_err_t mqtt_publish_gps(const char* user_id,
                             double longitude,
                             double altitude);
 
-void mqtt_publish_calories(void);
+void mqtt_publish_calories(const char* user_id);
 
 #ifdef __cplusplus
 }

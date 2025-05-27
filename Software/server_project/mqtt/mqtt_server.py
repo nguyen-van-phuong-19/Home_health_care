@@ -21,9 +21,19 @@ CALORIES_MET_FACTORS = {
 }
 
 # Globals for sleep detection
-last_activity_state = "resting"
 is_sleeping = False
 sleep_start_time: datetime = None
+
+calo_pr = 0
+calo_total = 0
+
+timestamp = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+today_pr = datetime.fromisoformat(timestamp).strftime("%Y-%m-%d")
+
+is_new_day = False
+configured = False
+
+duration_h = 0.1
 
 # Initialize Firebase service
 CREDENTIAL_PATH = "env/sleep-system-7d563-firebase-adminsdk-fbsvc-df9f2e8fd0.json"
@@ -39,26 +49,29 @@ def on_connect(client, userdata, flags, rc):
     client.subscribe(topics.TOPIC_SPO2)
     client.subscribe(topics.TOPIC_ACCELEROMETER)
     client.subscribe(topics.TOPIC_GPS)
+    client.subscribe(topics.MQTT_TOPIC_CALORIES)
+    client.subscribe(topics.MQTT_TOPIC_SLEEP)
 
 
 def on_message(client, userdata, msg):
-    global is_sleeping, sleep_start_time
+    global is_sleeping, sleep_start_time, today_pr, calo_pr, calo_total, duration_h, is_new_day, configured
+    topic = msg.topic
+    if topic == topics.MQTT_TOPIC_SLEEP:
+        return
     payload = json.loads(msg.payload.decode())
     user_id = payload.get("user_id", "user123")
-    topic = msg.topic
-    last_bpm = 0;
-    timestamp = payload.get(
-        "timestamp",
-        datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
-    )
+    timestamp = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+
+    today = datetime.fromisoformat(timestamp).strftime("%Y-%m-%d")
 
     print(f"Received message on topic {topic}: {payload}")
 
     if topic == topics.TOPIC_HEART_RATE:
         bpm = payload.get("bpm", 0)
-        last_bpm = bpm
+
         # store heart rate
         service.add_heart_rate(user_id, timestamp, bpm)
+        service.set_latest_in4_hr(user_id, bpm)
 
         # sleep detection
         if bpm < 60 and not is_sleeping:
@@ -77,23 +90,25 @@ def on_message(client, userdata, msg):
             )
             service.add_daily_sleep(
                 user_id,
-                sleep_start_time.strftime("%Y-%m-%d"),
+                today,
                 duration_h,
             )
+        if today_pr != today:
+            is_new_day = True
+        if is_new_day:
+            client.publish(topics.MQTT_TOPIC_SLEEP, "0", qos=1, retain=False)
+            print("new day")
+            is_new_day = False
+            configured = True
 
-        # calories by heart rate
-        weight = payload.get("weight_kg", 75)
-        age = payload.get("age", 23)
-        epoch_min = payload.get("epoch_minutes", 1)
-        cal_per_min = (
-            -55.0969 + 0.6309 * bpm + 0.1988 * weight + 0.2017 * age
-        ) / 4.184
-        cal_per_min = max(cal_per_min, 0)
-        cal_burned = cal_per_min * epoch_min
-        today = datetime.fromisoformat(timestamp).strftime("%Y-%m-%d")
-        service.add_calories_by_hr(user_id, today, bpm, cal_burned)
-        service.set_latest_in4_hr(user_id, bpm)
-
+        if calo_total > calo_pr and configured:
+            client.publish(topics.MQTT_TOPIC_SLEEP, "0", qos=1, retain=False)
+            print("new day")
+        else:
+            client.publish(topics.MQTT_TOPIC_SLEEP, str(duration_h), qos=1, retain=False)
+            print("old day")
+            configured = False
+        today_pr = today
         # after accelerometer processed too, combine daily calories
         # leave combine step to message ordering or implement separately
 
@@ -107,15 +122,6 @@ def on_message(client, userdata, msg):
         if total_vector is None:
             print("No 'total_vector' in payload")
             return
-        weight = payload.get("weight_kg", 70)
-        epoch_min = payload.get("epoch_minutes", 1)
-        cal_per_min_acc = (
-            0.001064 * total_vector + 0.087512 * weight - 5.500229
-        )
-        cal_per_min_acc = max(cal_per_min_acc, 0)
-        cal_acc = cal_per_min_acc * epoch_min
-        today = datetime.fromisoformat(timestamp).strftime("%Y-%m-%d")
-        service.add_calories_by_accel(user_id, today, cal_acc)
 
     elif topic == topics.TOPIC_GPS:
         lat = payload.get("latitude", 0)
@@ -123,6 +129,18 @@ def on_message(client, userdata, msg):
         alt = payload.get("altitude", 0)
         service.add_gps(user_id, timestamp, lat, lon, alt)
         service.set_latest_location(user_id, lat, lon, alt, timestamp)
+
+    elif topic == topics.MQTT_TOPIC_CALORIES:
+        calo_hr = payload.get("cal_hr", 0)
+        calo_motion = payload.get("cal_motion", 0)
+        calo_total = payload.get("cal_total", 0)
+        service.add_calories_daily(user_id, today, calo_total, calo_hr, calo_motion)
+        calo_pr = calo_total
+
+
+
+
+
 
 
 def main():

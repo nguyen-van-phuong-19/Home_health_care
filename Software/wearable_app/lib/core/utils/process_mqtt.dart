@@ -31,6 +31,7 @@ class ProcessMqttService {
     _mqtt.subscribe(MQTTService.TOPIC_SPO2, MqttQos.atLeastOnce);
     _mqtt.subscribe(MQTTService.TOPIC_ACCELEROMETER, MqttQos.atLeastOnce);
     _mqtt.subscribe(MQTTService.TOPIC_GPS, MqttQos.atLeastOnce);
+    _mqtt.subscribe(MQTTService.TOPIC_CALORIES, MqttQos.atLeastOnce);
 
     _mqtt.client?.updates?.listen(_onMessage);
   }
@@ -98,6 +99,14 @@ class ProcessMqttService {
   Future<void> sendGps(GpsTopic data) async {
     _mqtt.publishJson(
       MQTTService.TOPIC_GPS,
+      data.toJson(),
+      qos: MqttQos.atLeastOnce,
+    );
+  }
+
+  Future<void> sendCalories(CaloriesTopic data) async {
+    _mqtt.publishJson(
+      MQTTService.TOPIC_CALORIES,
       data.toJson(),
       qos: MqttQos.atLeastOnce,
     );

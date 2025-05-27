@@ -160,7 +160,7 @@ static float calculate_calories_hr(uint8_t hr, uint8_t age, float weight_kg, uin
 {
     // Ví dụ công thức (Men):  Calories/min = ( -55.0969 + 0.6309·HR + 0.1988·weight + 0.2017·age ) / 4.184
     // Ví dụ công thức (Women): Calories/min = ( -20.4022 + 0.4472·HR – 0.1263·weight + 0.074·age ) / 4.184
-    if(hr <= 10){
+    if(hr <= 40){
       return 1.05f;
     }
     float cpm;
@@ -243,6 +243,8 @@ esp_err_t sensor_data_update_daily_calories(uint8_t age,
     *out_daily_total = s_daily_calories_total;
     if (is_new_day) {
       s_daily_calories_total = 0;
+      s_last_cal_hr = 0;
+      s_last_cal_motion = 0;
       is_new_day = false;
     }
     xSemaphoreGive(s_mutex);

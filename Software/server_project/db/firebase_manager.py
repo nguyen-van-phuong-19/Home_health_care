@@ -101,24 +101,6 @@ def update_latest_location(user_id: str, latitude: float, longitude: float, alti
     })
 
 
-def update_calories_by_heart_rate(user_id: str, date: str, bpm: float, calories_burned_hr: float) -> None:
-    """
-    Write daily calories by heart rate.
-    """
-    path = f"users/{user_id}/calories_by_heart_rate/{date}"
-    get_reference(path).set({
-        'bpm': bpm,
-        'calories_burned_hr': calories_burned_hr
-    })
-
-
-def update_calories_by_accelerometer(user_id: str, date: str, total_calories: float) -> None:
-    """
-    Write daily calories by accelerometer.
-    """
-    path = f"users/{user_id}/calorise_by_accelerometer/{date}"
-    get_reference(path).set({'total_calories': total_calories})
-
 
 def update_calories_daily(user_id: str, date: str, combined_daily_calories: float,
                           heart_rate_calories: float, accelerometer_calories: float) -> None:
@@ -165,11 +147,8 @@ if __name__ == '__main__':
 
     # Example writes
     update_heart_rate('user123', '2025-04-22T18:00:00', 72.0)
-    update_latest_in4('user123', 98.2, 72)
     update_gps('user123', '2025-04-22T18:00:00', 21.0278, 105.8342, 12.0)
     update_latest_location('user123', 21.0278, 105.8342, 12.0, '2025-04-22T18:00:00')
     update_sleep_record('user123', '2025-04-21T22:00:00', '2025-04-22T06:00:00', 8.0)
     update_daily_sleep('user123', '2025-04-22', 8.0)
-    update_calories_by_heart_rate('user123', '2025-04-22', 72.0, 300.5)
-    update_calories_by_accelerometer('user123', '2025-04-22', 450.2)
     update_calories_daily('user123', '2025-04-22', 750.7, 300.5, 450.2)

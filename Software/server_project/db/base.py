@@ -10,8 +10,6 @@ from db.firebase_manager import (
     update_latest_in4_hr,
     update_gps,
     update_latest_location,
-    update_calories_by_heart_rate,
-    update_calories_by_accelerometer,
     update_calories_daily,
     update_sleep_record,
     update_daily_sleep,
@@ -108,12 +106,6 @@ class BaseService:
 
     def set_latest_location(self, user_id: str, latitude: float, longitude: float, altitude: float, timestamp: str) -> None:
         update_latest_location(user_id, latitude, longitude, altitude, timestamp)
-
-    def add_calories_by_hr(self, user_id: str, date: str, bpm: float, calories_burned_hr: float) -> None:
-        update_calories_by_heart_rate(user_id, date, bpm, calories_burned_hr)
-
-    def add_calories_by_accel(self, user_id: str, date: str, total_calories: float) -> None:
-        update_calories_by_accelerometer(user_id, date, total_calories)
 
     def add_calories_daily(self, user_id: str, date: str, combined: float, hr_cal: float, accel_cal: float) -> None:
         update_calories_daily(user_id, date, combined, hr_cal, accel_cal)
