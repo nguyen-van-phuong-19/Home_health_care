@@ -9074,7 +9074,7 @@
 		)
 		(uuid "797e6235-9c15-4ba7-8a30-8d55c8f302b1")
 	)
-	(label "DTR"
+	(label "RTS"
 		(at 321.31 195.58 0)
 		(fields_autoplaced yes)
 		(effects
@@ -9140,7 +9140,7 @@
 		)
 		(uuid "8e5cf783-cb51-4f34-9b55-e423a351ec9f")
 	)
-	(label "RTS"
+	(label "DTR"
 		(at 321.31 214.63 0)
 		(fields_autoplaced yes)
 		(effects
