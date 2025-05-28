@@ -67,6 +67,8 @@ class DefaultFirebaseOptions {
     projectId: 'sleep-system-7d563',
     databaseURL: 'https://sleep-system-7d563-default-rtdb.asia-southeast1.firebasedatabase.app',
     storageBucket: 'sleep-system-7d563.firebasestorage.app',
+    androidClientId: '672419730697-u2fvuei2ufi0drdg0294jnpfusfkft5m.apps.googleusercontent.com',
+    iosClientId: '672419730697-jsn5v0pq631jr0151gf0099uaibq7c51.apps.googleusercontent.com',
     iosBundleId: 'com.example.wearableApp',
   );
 
@@ -77,6 +79,8 @@ class DefaultFirebaseOptions {
     projectId: 'sleep-system-7d563',
     databaseURL: 'https://sleep-system-7d563-default-rtdb.asia-southeast1.firebasedatabase.app',
     storageBucket: 'sleep-system-7d563.firebasestorage.app',
+    androidClientId: '672419730697-u2fvuei2ufi0drdg0294jnpfusfkft5m.apps.googleusercontent.com',
+    iosClientId: '672419730697-jsn5v0pq631jr0151gf0099uaibq7c51.apps.googleusercontent.com',
     iosBundleId: 'com.example.wearableApp',
   );
 
@@ -90,4 +94,5 @@ class DefaultFirebaseOptions {
     storageBucket: 'sleep-system-7d563.firebasestorage.app',
     measurementId: 'G-CMQBX33SB8',
   );
+
 }

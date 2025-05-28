@@ -6,14 +6,38 @@ import 'package:table_calendar/table_calendar.dart';
 import 'package:wearable_app/services/firebase_service.dart';
 
 /// ------------------ HEART RATE HISTORY ------------------
-class HeartRateHistoryScreen extends StatelessWidget {
+class HeartRateHistoryScreen extends StatefulWidget {
   final String userId;
   const HeartRateHistoryScreen({super.key, required this.userId});
+
+  @override
+  State<HeartRateHistoryScreen> createState() => _HeartRateHistoryScreenState();
+}
+
+class _HeartRateHistoryScreenState extends State<HeartRateHistoryScreen> {
+  final ScrollController _scrollController = ScrollController();
+  @override
+  void initState() {
+    super.initState();
+    // Đợi đến frame cuối cùng để position đã xác định xong
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        // Với reverse: true, maxScrollExtent sẽ là "đầu" của danh sách đảo
+        _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
 
   /// Trả về list map: [{ 'timestamp': String, 'bpm': double }, ...]
   Future<List<Map<String, dynamic>>> _fetchHeartRateData() async {
     final snapshot = await FirebaseService().readOnce(
-      'users/$userId/heart_rate',
+      'users/${widget.userId}/heart_rate',
     );
     final raw = snapshot.value;
     final Map<String, dynamic> hrMap =
@@ -54,6 +78,9 @@ class HeartRateHistoryScreen extends StatelessWidget {
                 return FlSpot(e.key.toDouble(), e.value['bpm'] as double);
               }).toList();
 
+          final count = data.length >= 20 ? 20 : data.length;
+          final startIndex = data.length - count;
+
           return Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
@@ -91,9 +118,9 @@ class HeartRateHistoryScreen extends StatelessWidget {
                 const SizedBox(height: 8),
                 Expanded(
                   child: ListView.builder(
-                    itemCount: data.length,
+                    itemCount: count,
                     itemBuilder: (context, index) {
-                      final item = data[index];
+                      final item = data[startIndex + count - 1 - index];
                       final ts = item['timestamp'] as String;
                       final bpm = item['bpm'] as double;
                       return ListTile(
@@ -163,6 +190,8 @@ class Spo2HistoryScreen extends StatelessWidget {
                   e.value['percentage'] as double,
                 );
               }).toList();
+          final count = data.length >= 20 ? 20 : data.length;
+          final startIndex = data.length - count;
 
           return Padding(
             padding: const EdgeInsets.all(16),
@@ -200,7 +229,7 @@ class Spo2HistoryScreen extends StatelessWidget {
                   child: ListView.builder(
                     itemCount: data.length,
                     itemBuilder: (context, index) {
-                      final item = data[index];
+                      final item = data[startIndex + count - 1 - index];
                       final ts = item['timestamp'] as String;
                       final pct = item['percentage'] as double;
                       return ListTile(

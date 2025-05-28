@@ -1,278 +1,348 @@
-#include <stdio.h>
-#include <string.h>
-#include <math.h>
-#include <inttypes.h>
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-#include "driver/i2c.h"
+#include "esp_err.h"
 #include "esp_log.h"
+#include "freertos/idf_additions.h"
+#include "main.h"
+#include "l80r_process.h"
+#include "mqtt_cl.h"
+#include "sensor_data.h"
+#include "wifi_pr.h"
+#include <stdbool.h>
+#include "ssd1306_oled.h"
+// #include "ble_store.h"
 
-// I2C configuration cho ESP32-S3-N16R8 (sử dụng chân phù hợp với board của bạn)
-#define I2C_MASTER_SDA_IO           6
-#define I2C_MASTER_SCL_IO           7
-#define I2C_MASTER_NUM              I2C_NUM_0
-#define I2C_MASTER_FREQ_HZ          100000  // 100 kHz để ổn định
-#define I2C_MASTER_TIMEOUT_MS       1000
 
-// MAX30102 address and registers
-#define MAX30102_ADDR               0x57
-#define REG_MODE_CONFIG             0x09    // MODE_CONFIG: dùng 0x03 cho SpO2 mode
-#define REG_SPO2_CONFIG             0x0A    // SPO2 configuration
-#define REG_LED1_PA                 0x0C    // Red LED
-#define REG_LED2_PA                 0x0D    // IR LED
-#define REG_FIFO_WR_PTR             0x04
-#define REG_FIFO_RD_PTR             0x06
-#define REG_FIFO_DATA               0x07    // FIFO Data (6 bytes: 3 for Red, 3 for IR)
 
-// MAX30102 configuration values
-#define MODE_CONFIG_VALUE           0x03
-#define SPO2_CONFIG_VALUE           0x27    // ví dụ: SPO2_ADC_RGE=0, SPO2_SR=0x03 (~400 sps), LED_PW=0x03 (411µs, 18-bit)
-#define LED1_PA_VALUE               0x24
-#define LED2_PA_VALUE               0x24
+#define LIS2DH12_TASK_STACK_SIZE    (8*1024)
+#define MAX30102_TASK_STACK_SIZE    4096
+#define LIS2DH12_TASK_PRIORITY      5
+#define MAX30102_TASK_PRIORITY      5
+#define WIFI_WATCHDOG_TASK_PRIORITY 12
+#define TRANSMIT_TASK_PRIORITY      3
 
-// Sampling parameters: 100 Hz, block 10 seconds (1000 samples)
-#define SAMPLE_INTERVAL_MS          10  // 100 samples/s
-#define BLOCK_DURATION_MS           10000  // 10 s
-#define BLOCK_SIZE                  (BLOCK_DURATION_MS / SAMPLE_INTERVAL_MS)  // 1000 samples
+static const char *TAG = "APP_MAIN";
 
-// FIR Bandpass Filter parameters (51-tap filter)
-// bp_coeff được thiết kế bằng Python với f_s = 100Hz, dải 0.5 – 5Hz, cửa sổ Hamming.
-#define FIR_TAP_NUM                 51
-static const float bp_coeff[FIR_TAP_NUM] = {
-    3.32486044e-04,  3.29430027e-04,  2.15175022e-04, -8.98882281e-05, -7.02767015e-04,
-   -1.74996679e-03, -3.32883536e-03, -5.46483060e-03, -8.07303950e-03, -1.09325100e-02,
-   -1.36806326e-02, -1.58320492e-02, -1.68227595e-02, -1.60758239e-02, -1.30810328e-02,
-   -7.47781959e-03,  8.70886937e-04,  1.18258905e-02,  2.49498467e-02,  3.95222060e-02,
-    5.45918953e-02,  6.90632328e-02,  8.18055781e-02,  9.17734311e-02,  9.81217282e-02,
-    1.00301287e-01,  9.81217282e-02,  9.17734311e-02,  8.18055781e-02,  6.90632328e-02,
-    5.45918953e-02,  3.95222060e-02,  2.49498467e-02,  1.18258905e-02,  8.70886937e-04,
-   -7.47781959e-03, -1.30810328e-02, -1.60758239e-02, -1.68227595e-02, -1.58320492e-02,
-   -1.36806326e-02, -1.09325100e-02, -8.07303950e-03, -5.46483060e-03, -3.32883536e-03,
-   -1.74996679e-03, -7.02767015e-04, -8.98882281e-05,  2.15175022e-04,  3.29430027e-04,
-    3.32486044e-04
-};
+// Shared I2C mutex to protect bus on SDA/SCL
+static SemaphoreHandle_t i2c_mutex = NULL;
 
-// Các thông số hiệu chuẩn cho thuật toán phát hiện nhịp và SpO2
-#define PEAK_THRESHOLD 3000.0f  // Ngưỡng tối thiểu của filtered signal để xác định đỉnh
-// Các hằng số hiệu chuẩn cho SpO2 (đề xuất dựa trên dữ liệu tham chiếu từ người khỏe mạnh)
-#define CAL_A 115.0f
-#define CAL_B 15.0f
+static StaticTask_t lis2dh12_tcb;
+static StackType_t  lis2dh12_stack[LIS2DH12_TASK_STACK_SIZE];
+static StaticTask_t max30102_tcb;
+static StackType_t  max30102_stack[MAX30102_TASK_STACK_SIZE];
+// cấu hình stack/TCB để tạo task tĩnh
+#define WIFI_WD_STACK_SIZE 4096
+static StaticTask_t   wifiWdTCB;
+static StackType_t    wifiWdStack[WIFI_WD_STACK_SIZE];
 
-//------------------------------------------------------------------------------
-// I2C functions (sử dụng API của ESP-IDF)
-//------------------------------------------------------------------------------
-esp_err_t i2c_master_init(void) {
-    i2c_config_t conf = {
-        .mode = I2C_MODE_MASTER,
-        .sda_io_num = I2C_MASTER_SDA_IO,
-        .scl_io_num = I2C_MASTER_SCL_IO,
-        .sda_pullup_en = GPIO_PULLUP_ENABLE,
-        .scl_pullup_en = GPIO_PULLUP_ENABLE,
-        .master.clk_speed = I2C_MASTER_FREQ_HZ,
-    };
-    esp_err_t err = i2c_param_config(I2C_MASTER_NUM, &conf);
-    if(err != ESP_OK) return err;
-    return i2c_driver_install(I2C_MASTER_NUM, conf.mode, 0, 0, 0);
-}
 
-esp_err_t max30102_write_reg(uint8_t reg_addr, uint8_t data) {
-    i2c_cmd_handle_t cmd = i2c_cmd_link_create();
-    esp_err_t ret;
-    i2c_master_start(cmd);
-    i2c_master_write_byte(cmd, (MAX30102_ADDR << 1) | I2C_MASTER_WRITE, true);
-    i2c_master_write_byte(cmd, reg_addr, true);
-    i2c_master_write_byte(cmd, data, true);
-    i2c_master_stop(cmd);
-    ret = i2c_master_cmd_begin(I2C_MASTER_NUM, cmd, I2C_MASTER_TIMEOUT_MS / portTICK_PERIOD_MS);
-    i2c_cmd_link_delete(cmd);
-    return ret;
-}
+static void lis2dh12_task(void *arg);
+static void max30102_task(void *arg);
+static void wifi_watchdog_task(void *arg);
+static void transmit_task(void *pv);
 
-esp_err_t max30102_read_reg(uint8_t reg_addr, uint8_t *data, size_t len) {
-    i2c_cmd_handle_t cmd = i2c_cmd_link_create();
-    esp_err_t ret;
-    i2c_master_start(cmd);
-    i2c_master_write_byte(cmd, (MAX30102_ADDR << 1) | I2C_MASTER_WRITE, true);
-    i2c_master_write_byte(cmd, reg_addr, true);
-    i2c_master_start(cmd);
-    i2c_master_write_byte(cmd, (MAX30102_ADDR << 1) | I2C_MASTER_READ, true);
-    if (len > 1)
-        i2c_master_read(cmd, data, len - 1, I2C_MASTER_ACK);
-    i2c_master_read_byte(cmd, data + len - 1, I2C_MASTER_NACK);
-    i2c_master_stop(cmd);
-    ret = i2c_master_cmd_begin(I2C_MASTER_NUM, cmd, I2C_MASTER_TIMEOUT_MS / portTICK_PERIOD_MS);
-    i2c_cmd_link_delete(cmd);
-    return ret;
-}
-
-//------------------------------------------------------------------------------
-// MAX30102 initialization (set vào SpO2 mode)
-//------------------------------------------------------------------------------
-esp_err_t max30102_init(void) {
-    esp_err_t ret;
-    ret = max30102_write_reg(REG_MODE_CONFIG, MODE_CONFIG_VALUE);
-    if(ret != ESP_OK) {
-         ESP_LOGE("MAX30102", "Error writing MODE_CONFIG");
-         return ret;
-    }
-    ret = max30102_write_reg(REG_SPO2_CONFIG, SPO2_CONFIG_VALUE);
-    if(ret != ESP_OK) {
-         ESP_LOGE("MAX30102", "Error writing SPO2_CONFIG");
-         return ret;
-    }
-    ret = max30102_write_reg(REG_LED1_PA, LED1_PA_VALUE);
-    if(ret != ESP_OK) {
-         ESP_LOGE("MAX30102", "Error writing LED1_PA");
-         return ret;
-    }
-    ret = max30102_write_reg(REG_LED2_PA, LED2_PA_VALUE);
-    if(ret != ESP_OK) {
-         ESP_LOGE("MAX30102", "Error writing LED2_PA");
-         return ret;
-    }
-    // Reset FIFO pointers
-    ret = max30102_write_reg(REG_FIFO_WR_PTR, 0x00);
-    if(ret != ESP_OK) return ret;
-    ret = max30102_write_reg(REG_FIFO_RD_PTR, 0x00);
-    if(ret != ESP_OK) return ret;
-    ESP_LOGI("MAX30102", "Initialization complete");
-    return ESP_OK;
-}
-
-//------------------------------------------------------------------------------
-// Đọc mẫu từ FIFO: Mỗi mẫu gồm 6 byte (3 cho Red, 3 cho IR)
-//------------------------------------------------------------------------------
-esp_err_t max30102_read_sample(uint32_t *red, uint32_t *ir) {
-    uint8_t fifoData[6];
-    esp_err_t ret = max30102_read_reg(REG_FIFO_DATA, fifoData, 6);
-    if(ret != ESP_OK) return ret;
-    *red = (((uint32_t)fifoData[0] << 16) | ((uint32_t)fifoData[1] << 8) | fifoData[2]) & 0x03FFFF;
-    *ir  = (((uint32_t)fifoData[3] << 16) | ((uint32_t)fifoData[4] << 8) | fifoData[5]) & 0x03FFFF;
-    return ESP_OK;
-}
-
-//------------------------------------------------------------------------------
-// Thu thập block dữ liệu: Lưu BLOCK_SIZE mẫu (1000 mẫu cho 10 giây)
-//------------------------------------------------------------------------------
 static uint32_t red_block[BLOCK_SIZE];
 static uint32_t ir_block[BLOCK_SIZE];
 static int block_index = 0;
-
-//------------------------------------------------------------------------------
-// Offline FIR convolution: thực hiện convolution trên toàn block
-// Kết quả có length = BLOCK_SIZE - FIR_TAP_NUM + 1
-//------------------------------------------------------------------------------
-void offline_fir_convolve(uint32_t *input, float *output, int length) {
-    int out_length = length - FIR_TAP_NUM + 1;
-    for (int i = 0; i < out_length; i++) {
-        float acc = 0.0f;
-        for (int j = 0; j < FIR_TAP_NUM; j++) {
-            acc += bp_coeff[j] * ((float)input[i+j]);
-        }
-        output[i] = acc;
-    }
-}
-
-//------------------------------------------------------------------------------
-// Phát hiện đỉnh trong tín hiệu đã qua convolution
-// Một mẫu được coi là đỉnh nếu nó là local maximum trong cửa sổ +/-1 mẫu
-// và vượt quá ngưỡng PEAK_THRESHOLD, với refractory period bằng 600 ms (tương đương 600/100 = 6 mẫu, ở đây có thể tăng lên 60 mẫu nếu cần)
-//------------------------------------------------------------------------------
-int count_beats_in_convolved(float *data, int length, float sample_interval_sec, int refractory_samples) {
-    int beat_count = 0;
-    int last_peak_index = -refractory_samples; // Khởi tạo để đảm bảo mẫu đầu tiên có thể được đếm
-    // Duyệt từ 1 đến length-2 để kiểm tra local maximum
-    for (int i = 1; i < length-1; i++) {
-        if(data[i] > PEAK_THRESHOLD &&
-           data[i] > data[i-1] && data[i] > data[i+1] &&
-           (i - last_peak_index) >= refractory_samples) {
-            beat_count++;
-            last_peak_index = i;
-        }
-    }
-    return beat_count;
-}
-
-//------------------------------------------------------------------------------
-// Tính HR và SpO2 dựa trên toàn bộ block
-// Đối với SpO2: tính DC (trung bình) và AC (=(max-min)/2) cho từng kênh, sau đó
-// Tỉ số R = (AC_red/DC_red) / (AC_ir/DC_ir) và công thức: SpO2 = CAL_A - CAL_B * R
-float compute_spo2_block(uint32_t *red_data, uint32_t *ir_data, int length) {
-    uint32_t red_dc = 0, ir_dc = 0;
-    uint32_t red_max = red_data[0], red_min = red_data[0];
-    uint32_t ir_max = ir_data[0], ir_min = ir_data[0];
-    for (int i = 0; i < length; i++) {
-        red_dc += red_data[i];
-        ir_dc  += ir_data[i];
-        if(red_data[i] > red_max) red_max = red_data[i];
-        if(red_data[i] < red_min) red_min = red_data[i];
-        if(ir_data[i] > ir_max) ir_max = ir_data[i];
-        if(ir_data[i] < ir_min) ir_min = ir_data[i];
-    }
-    red_dc /= length;
-    ir_dc  /= length;
-    
-    float red_ac = ((float)red_max - (float)red_min) / 2.0f;
-    float ir_ac = ((float)ir_max - (float)ir_min) / 2.0f;
-    
-    if(red_dc == 0 || ir_dc == 0 || ir_ac == 0)
-        return 0.0f;
-    
-    float R = (red_ac / red_dc) / (ir_ac / ir_dc);
-    float spo2 = CAL_A - CAL_B * R;
-    if(spo2 > 100.0f) spo2 = 100.0f;
-    if(spo2 < 0.0f) spo2 = 0.0f;
-    return spo2;
-}
-
-//------------------------------------------------------------------------------
-// Main application: Thu thập BLOCK_SIZE mẫu (10s), xử lý offline,
-// tính HR và SpO2 từ dữ liệu block.
-#define CONVOLVED_SIZE (BLOCK_SIZE - FIR_TAP_NUM + 1)
+static int convolved_index = 0;
 static float convolved_signal[CONVOLVED_SIZE];
+static float vector_sum = 0.0f;
 
-void app_main(void) {
+void app_main(void)
+{
+
+    // ssd1306_init();
+    // ssd1306_clear();
+    // ssd1306_draw_string(0, 0, "Hello, OLED!");
+    // ssd1306_refresh();
+
+
+
+
+    // wifi_init_sta();
+    //
+    // if(!wifi_try_connect_list(5000)){
+    //   ESP_LOGI(TAG, "Connect fail to wifi!");
+    // }
+
+
+    // 2) Khởi tạo LIS2DH12TR
     ESP_ERROR_CHECK(i2c_master_init());
+    // ESP_ERROR_CHECK(lis2dh12_init());
     ESP_ERROR_CHECK(max30102_init());
-    
-    block_index = 0;
-    
-    while(1) {
-        uint32_t red_val, ir_val;
-        if(max30102_read_sample(&red_val, &ir_val) == ESP_OK) {
-            red_block[block_index] = red_val;
-            ir_block[block_index]  = ir_val;
-            block_index++;
-            
-            if(block_index < BLOCK_SIZE) {
-                vTaskDelay(pdMS_TO_TICKS(SAMPLE_INTERVAL_MS));
-                continue;
+    ESP_LOGI("MAIN", "I2C initialized");
+
+    // l80r_init();
+    // // Create I2C mutex (with priority inheritance)
+    i2c_mutex = xSemaphoreCreateMutex();
+    configASSERT(i2c_mutex);
+
+    ESP_ERROR_CHECK(sensor_data_init());
+
+    // BaseType_t r;
+
+    // xTaskCreateStatic(
+    //     lis2dh12_task,      // hàm task
+    //     "lis2dh12_task",    // tên task
+    //     LIS2DH12_TASK_STACK_SIZE,               // stack size (bytes)
+    //     NULL,               // tham số truyền vào
+    //     LIS2DH12_TASK_PRIORITY,
+    //     lis2dh12_stack,
+    //     &lis2dh12_tcb
+    // );
+
+    xTaskCreateStatic(
+        max30102_task,      // hàm task
+        "max30102_task",    // tên task
+        MAX30102_TASK_STACK_SIZE,               // stack size (bytes)
+        NULL,               // tham số truyền vào
+        MAX30102_TASK_PRIORITY,
+        max30102_stack,
+        &max30102_tcb
+    );
+
+    // xTaskCreateStatic(
+    //     wifi_watchdog_task,         // entry fn
+    //     "wifi_watchdog",            // name
+    //     WIFI_WD_STACK_SIZE,         // stack depth (words)
+    //     NULL,                       // param
+    //     WIFI_WATCHDOG_TASK_PRIORITY,       // priority
+    //     wifiWdStack,                // stack buffer
+    //     &wifiWdTCB                  // TCB buffer
+    // );
+    //
+    // r = xTaskCreate(
+    //     transmit_task,
+    //     "transmit",
+    //     4*1024,
+    //     NULL,
+    //     TRANSMIT_TASK_PRIORITY,  // ưu tiên cao hơn các task thu thập dữ liệu
+    //     NULL
+    // );
+    // if (r != pdPASS) {
+    //     ESP_LOGE(TAG, "Failed to create transmit_task");
+    // }
+    //
+    // xTaskCreate(l80r_task, "l80r_task", 4096, NULL, 5, NULL);
+
+}
+
+
+static void lis2dh12_task(void *arg)
+{
+    lis2dh12_vector_t acc;
+    lis2dh12_vector_t acc_last;
+    for(;;) {
+        if(xSemaphoreTake(i2c_mutex, portMAX_DELAY) == pdTRUE) {
+            if (lis2dh12_get_vector(&acc) == ESP_OK) {
+                vector_sum = vector_sum + sqrtf((acc.x - acc_last.x) * (acc.x - acc_last.x) + (acc.y - acc_last.y) * (acc.y - acc_last.y) + (acc.z - acc_last.z) * (acc.z - acc_last.z));
+                convolved_index++;
+                acc_last = acc;
+                // printf("Accel [m/s^2]: X=%7.3f  Y=%7.3f  Z=%7.3f\n",
+                //     acc.x, acc.y, acc.z);
+
+                if(convolved_index >= 60 * 100){
+                    ESP_LOGI(TAG, "total vector: %.2f",
+                                vector_sum);
+                    sensor_data_set_motion(vector_sum);
+                    vector_sum = 0.0f;
+                    convolved_index = 0;
+                }
+            } else {
+                ESP_LOGE(TAG, "LIS2DH12TR read failed");
             }
-            
-            // Khi đã thu thập đủ 1000 mẫu (10 s)
-            // Offline FIR convolution trên block của kênh Red
-            offline_fir_convolve(red_block, convolved_signal, BLOCK_SIZE);
-            
-            // Với tốc độ mẫu 100Hz, refractory period là 600 ms tương đương 60 mẫu
-            int beats = count_beats_in_convolved(convolved_signal, CONVOLVED_SIZE, SAMPLE_INTERVAL_MS/1000.0f, 60);
-            float duration_sec = (BLOCK_DURATION_MS) / 1000.0f;  // 10 s
-            uint32_t hr = (uint32_t)(((float)beats / duration_sec) * 60);
-            
-            float spo2_avg = compute_spo2_block(red_block, ir_block, BLOCK_SIZE);
-            
-            ESP_LOGI("RESULT", "Block (10s) -> HR: %d bpm, SpO2: %.1f%%, Beats: %d",
-                     (int)hr, spo2_avg, beats);
-            
-            // Reset index để block mới
-            block_index = 0;
-            for(int i = 0; i < BLOCK_SIZE; i++) {
-                red_block[i] = 0;
-                ir_block[i]  = 0;
-            }
-            vTaskDelay(pdMS_TO_TICKS(10000)); // Chờ 10 giây trước khi thu thập block tiếp theo
-        } else {
-            ESP_LOGE("DATA", "Error reading sample");
-            vTaskDelay(pdMS_TO_TICKS(SAMPLE_INTERVAL_MS));
+            xSemaphoreGive(i2c_mutex);
         }
+        vTaskDelay(pdMS_TO_TICKS(10));  // 100 Hz
+    }
+}
+
+
+static void max30102_task(void *arg)
+{
+    uint32_t red_val, ir_val;
+    int beats = 0;
+    float duration_sec = 0.0f;
+    uint32_t hr = 0;
+    float spo2_avg = 0.0f;
+
+    for(;;) {
+        if(xSemaphoreTake(i2c_mutex, portMAX_DELAY) == pdTRUE) {
+            if(max30102_read_sample(&red_val, &ir_val) == ESP_OK) {
+                red_block[block_index] = red_val;
+                ir_block[block_index]  = ir_val;
+                block_index++;
+
+                if(block_index >= BLOCK_SIZE) {
+                    // Offline FIR convolution trên block của kênh Red
+                    offline_fir_convolve(red_block, convolved_signal, BLOCK_SIZE);
+
+                    // Với tốc độ mẫu 100Hz, refractory period là 600 ms tương đương 60 mẫu
+                    beats = count_beats_in_convolved(convolved_signal, CONVOLVED_SIZE, SAMPLE_INTERVAL_MS/1000.0f, 60);
+                    duration_sec = (BLOCK_DURATION_MS) / 1000.0f;  // 10 s
+                    hr = (uint32_t)(((float)beats / duration_sec) * 60);
+
+                    spo2_avg = compute_spo2_block(red_block, ir_block, BLOCK_SIZE);
+
+                    ESP_LOGI("RESULT", "Block (10s) -> HR: %d bpm, SpO2: %.1f%%, Beats: %d",
+                                (int)hr, spo2_avg, beats);
+                    sensor_data_set_hr(hr);
+                    sensor_data_set_spo2(spo2_avg);
+                    // Reset index để block mới
+                    block_index = 0;
+                    for(int i = 0; i < BLOCK_SIZE; i++) {
+                        red_block[i] = 0;
+                        ir_block[i]  = 0;
+                    }
+
+                    xSemaphoreGive(i2c_mutex);
+                    vTaskDelay(pdMS_TO_TICKS(50000)); // Chờ 10 giây trước khi thu thập block tiếp theo
+                    continue;
+                }
+            } else {
+                ESP_LOGE(TAG, "Error reading sample");
+            }
+            xSemaphoreGive(i2c_mutex);
+        }
+        vTaskDelay(pdMS_TO_TICKS(SAMPLE_INTERVAL_MS));  // 1 Hz
+    }
+
+}
+
+static void wifi_watchdog_task(void *arg)
+{
+    EventGroupHandle_t eg = wifi_event_group;
+    bool wifi_was_up   = true;
+    bool ble_started   = false;
+    bool mqtt_up       = false;
+
+    for (;;) {
+        EventBits_t bits = xEventGroupGetBits(eg);
+
+        if ((bits & WIFI_CONNECTED_BIT) == 0) {
+            // —— Wi-Fi DOWN ——
+            if (wifi_was_up) {
+                // lần đầu phát hiện rớt, dọn dẹp MQTT + khởi BLE
+                ESP_LOGW(TAG, "WiFi lost: deinit MQTT, init BLE");
+                if (mqtt_deinit() == ESP_OK) {
+                    ESP_LOGI(TAG, "mqtt_deinit OK");
+                }
+                if (ble_app_init() == ESP_OK) {
+                    ESP_LOGI(TAG, "ble_init OK");
+                    ble_started = true;
+                }
+                wifi_was_up   = false;
+                mqtt_up       = false;
+            }
+
+            // thử reconnect Wi-Fi
+            ESP_LOGI(TAG, "Watchdog: esp_wifi_connect()");
+            if(!wifi_try_connect_list(5000)){
+              ESP_LOGI(TAG, "Connect fail to wifi!");
+            }
+
+        } else {
+            if (mqtt_up) {
+              EventBits_t mqtt_bits = xEventGroupGetBits(mqtt_event_group);
+              if (mqtt_bits & MQTT_CONNECTED_BIT) {
+                ESP_LOGW(TAG, "WiFi OK but MQTT not connected");
+                mqtt_up       = false;
+              }
+            }
+            // —— Wi-Fi UP ——
+            if (!wifi_was_up) {
+                // lần đầu phát hiện lên lại, dọn BLE + khởi MQTT
+                ESP_LOGI(TAG, "WiFi reconnected: deinit BLE, init MQTT");
+                if (ble_started && ble_deinit() == ESP_OK) {
+                    ESP_LOGI(TAG, "ble_deinit OK");
+                }
+                // Giả sử bạn muốn tự động tái-khởi MQTT:
+                if (mqtt_init("mqtt://broker.emqx.io:1883", "client_id", NULL) == ESP_OK) {
+                    ESP_LOGI(TAG, "mqtt_init OK");
+                }
+                // reset flags
+                ble_started  = false;
+                wifi_was_up   = true;
+                mqtt_up      = true;
+            } else if(!mqtt_up){
+                if (mqtt_init("mqtt://broker.emqx.io:1883", "client_id", NULL) == ESP_OK) {
+                    ESP_LOGI(TAG, "mqtt_init OK");
+                }
+                mqtt_up      = true;
+            }
+        }
+        ESP_LOGI(TAG, "Check wifi!");
+        // đợi 60s rồi lặp lại
+        vTaskDelay(pdMS_TO_TICKS(60000));
+    }
+}
+
+
+
+
+static void transmit_task(void *pv)
+{
+    uint8_t hr;
+    uint8_t spo2;
+    float   motion;
+    const char *user_id = "2mrSt8vHRQd6kpPiHjuLobCrwK13";
+
+    // Chọn chu kỳ gửi — ví dụ 1s
+    const TickType_t delay_ticks = pdMS_TO_TICKS((1000 * 60) + 1000);
+
+    while (1) {
+        // 1) Lấy đồng thời cả 3 giá trị (atomic dưới mutex)
+        if (sensor_data_get_all(&hr, &spo2, &motion) != ESP_OK) {
+            ESP_LOGW(TAG, "Cannot read sensor data");
+            vTaskDelay(delay_ticks);
+            continue;
+        }
+
+        // 2) Kiểm tra Wi-Fi
+        EventBits_t wifi_bits = xEventGroupGetBits(wifi_event_group);
+        if (wifi_bits & WIFI_CONNECTED_BIT) {
+            // 2a) Nếu Wi-Fi OK → kiểm tra MQTT
+            EventBits_t mqtt_bits = xEventGroupGetBits(mqtt_event_group);
+            if (mqtt_bits & MQTT_CONNECTED_BIT) {
+                // Gửi qua MQTT
+                // Nếu bạn đã có các hàm publish riêng, gọi trực tiếp
+                // l80r_data_t current;
+                // l80r_get_data(&current);
+                esp_err_t err;
+                err = mqtt_publish_heart_rate(user_id,hr,75,23, 1);
+                if (err != ESP_OK) {
+                    ESP_LOGW(TAG, "MQTT HR publish failed: %s", esp_err_to_name(err));
+                }
+                err = mqtt_publish_spo2(user_id,spo2);
+                if (err != ESP_OK) {
+                    ESP_LOGW(TAG, "MQTT SpO2 publish failed: %s", esp_err_to_name(err));
+                }
+                err = mqtt_publish_accelerometer(user_id, motion, 75, 1);
+                if (err != ESP_OK) {
+                    ESP_LOGW(TAG, "MQTT Motion publish failed: %s", esp_err_to_name(err));
+                }
+                // err = mqtt_publish_gps("user123", current.latitude, current.longitude, current.altitude);
+                // if(err != ESP_OK){
+                //     ESP_LOGW(TAG, "MQTT GPS publish failed: %s", esp_err_to_name(err));
+                // }
+            } else {
+                ESP_LOGW(TAG, "WiFi OK but MQTT not connected");
+                // Có thể trigger reconnect hoặc log, tuỳ bạn
+            }
+        } else {
+            // 2b) Nếu không có Wi-Fi → gửi qua BLE advertising
+            // Bạn cần convert 3 giá trị vào 1 mảng bytes
+            // Ví dụ: [hr(1B), spo2(1B), motion(4B float little-endian)]
+            uint8_t buf[6];
+            buf[0] = hr;
+            buf[1] = spo2;
+            // memcopy float vào buf[2..5]
+            memcpy(&buf[2], &motion, sizeof(motion));
+
+            if (update_service_data(buf, sizeof(buf)) != ESP_OK) {
+                ESP_LOGW(TAG, "BLE adv update failed");
+            }
+            // BLE advertising phải đã start sẵn ở init, bạn chỉ cần update payload
+        }
+
+        vTaskDelay(delay_ticks);
     }
 }

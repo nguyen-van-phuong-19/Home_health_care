@@ -1,236 +1,154 @@
-"""
-Firebase Integration Module
---------------------------
-This module provides helper functions for interacting with Firebase from the MQTT server,
-React.js website, and Flutter app.
-"""
+import json
+import os
+from typing import Any, Dict, Optional
 
 import firebase_admin
-from firebase_admin import credentials
-from firebase_admin import firestore
-import json
-from datetime import datetime, timedelta
+from firebase_admin import credentials, db
 
-class FirebaseManager:
-    """Class to manage Firebase operations for the wearable device ecosystem"""
-    
-    def __init__(self, credentials_path):
-        """Initialize Firebase connection with the provided credentials"""
-        self.cred = credentials.Certificate(credentials_path)
-        firebase_admin.initialize_app(self.cred)
-        self.db = firestore.client()
-        print("Firebase connection initialized successfully")
-    
-    def store_sensor_data(self, user_id, data_type, data):
-        """
-        Store sensor data in Firebase
-        
-        Args:
-            user_id (str): User identifier
-            data_type (str): Type of data (heart_rate, spo2, activity, gps, etc.)
-            data (dict): Data to store
-        
-        Returns:
-            bool: Success status
-        """
-        try:
-            # Ensure timestamp exists
-            if "timestamp" not in data:
-                data["timestamp"] = datetime.now().isoformat()
-            
-            # Store in historical collection
-            self.db.collection("users").document(user_id).collection(data_type).document(data["timestamp"]).set(data)
-            
-            # Update latest values
-            self.db.collection("users").document(user_id).set({
-                f"latest_{data_type}": data
-            }, merge=True)
-            
-            return True
-        except Exception as e:
-            print(f"Error storing {data_type} data: {e}")
-            return False
-    
-    def update_daily_stats(self, user_id, date, stats):
-        """
-        Update daily statistics for a user
-        
-        Args:
-            user_id (str): User identifier
-            date (str): Date in YYYY-MM-DD format
-            stats (dict): Statistics to update
-        
-        Returns:
-            bool: Success status
-        """
-        try:
-            daily_stats_ref = self.db.collection("users").document(user_id).collection("daily_stats").document(date)
-            daily_stats_ref.set(stats, merge=True)
-            return True
-        except Exception as e:
-            print(f"Error updating daily stats: {e}")
-            return False
-    
-    def get_latest_data(self, user_id, data_type):
-        """
-        Get latest data for a specific type
-        
-        Args:
-            user_id (str): User identifier
-            data_type (str): Type of data (heart_rate, spo2, activity, etc.)
-        
-        Returns:
-            dict: Latest data or None if not found
-        """
-        try:
-            user_doc = self.db.collection("users").document(user_id).get()
-            if user_doc.exists:
-                user_data = user_doc.to_dict()
-                return user_data.get(f"latest_{data_type}")
-            return None
-        except Exception as e:
-            print(f"Error getting latest {data_type} data: {e}")
-            return None
-    
-    def get_historical_data(self, user_id, data_type, start_time, end_time=None):
-        """
-        Get historical data for a specific type within a time range
-        
-        Args:
-            user_id (str): User identifier
-            data_type (str): Type of data (heart_rate, spo2, activity, etc.)
-            start_time (str): Start time in ISO format
-            end_time (str, optional): End time in ISO format. Defaults to current time.
-        
-        Returns:
-            list: List of data points
-        """
-        try:
-            if end_time is None:
-                end_time = datetime.now().isoformat()
-            
-            query = (self.db.collection("users").document(user_id).collection(data_type)
-                    .where("timestamp", ">=", start_time)
-                    .where("timestamp", "<=", end_time)
-                    .order_by("timestamp"))
-            
-            results = query.stream()
-            data_points = [doc.to_dict() for doc in results]
-            return data_points
-        except Exception as e:
-            print(f"Error getting historical {data_type} data: {e}")
-            return []
-    
-    def get_daily_stats(self, user_id, date):
-        """
-        Get daily statistics for a user
-        
-        Args:
-            user_id (str): User identifier
-            date (str): Date in YYYY-MM-DD format
-        
-        Returns:
-            dict: Daily statistics or empty dict if not found
-        """
-        try:
-            stats_doc = self.db.collection("users").document(user_id).collection("daily_stats").document(date).get()
-            if stats_doc.exists:
-                return stats_doc.to_dict()
-            return {}
-        except Exception as e:
-            print(f"Error getting daily stats: {e}")
-            return {}
-    
-    def get_weekly_stats(self, user_id, end_date=None):
-        """
-        Get weekly statistics for a user
-        
-        Args:
-            user_id (str): User identifier
-            end_date (str, optional): End date in YYYY-MM-DD format. Defaults to today.
-        
-        Returns:
-            dict: Weekly statistics with dates as keys
-        """
-        try:
-            if end_date is None:
-                end_date = datetime.now().strftime("%Y-%m-%d")
-            
-            end_date_obj = datetime.strptime(end_date, "%Y-%m-%d")
-            start_date_obj = end_date_obj - timedelta(days=6)  # 7 days including end_date
-            
-            weekly_stats = {}
-            current_date = start_date_obj
-            
-            while current_date <= end_date_obj:
-                date_str = current_date.strftime("%Y-%m-%d")
-                daily_stats = self.get_daily_stats(user_id, date_str)
-                weekly_stats[date_str] = daily_stats
-                current_date += timedelta(days=1)
-            
-            return weekly_stats
-        except Exception as e:
-            print(f"Error getting weekly stats: {e}")
-            return {}
-    
-    def register_user(self, user_id, user_data):
-        """
-        Register a new user or update existing user data
-        
-        Args:
-            user_id (str): User identifier
-            user_data (dict): User data
-        
-        Returns:
-            bool: Success status
-        """
-        try:
-            self.db.collection("users").document(user_id).set(user_data, merge=True)
-            return True
-        except Exception as e:
-            print(f"Error registering user: {e}")
-            return False
-    
-    def get_user_profile(self, user_id):
-        """
-        Get user profile data
-        
-        Args:
-            user_id (str): User identifier
-        
-        Returns:
-            dict: User profile data or None if not found
-        """
-        try:
-            user_doc = self.db.collection("users").document(user_id).get()
-            if user_doc.exists:
-                return user_doc.to_dict()
-            return None
-        except Exception as e:
-            print(f"Error getting user profile: {e}")
-            return None
+# Initialize Firebase app (singleton)
+_firebase_app: Optional[firebase_admin.App] = None
+
+
+def init_firebase(credential_path: str, database_url: str) -> None:
+    """
+    Initialize the Firebase Admin SDK.
+
+    Args:
+        credential_path: Path to the service account JSON file.
+        database_url: URL of the Realtime Database, e.g. https://<project>.firebaseio.com
+    """
+    global _firebase_app
+    if _firebase_app is None:
+        cred = credentials.Certificate(credential_path)
+        _firebase_app = firebase_admin.initialize_app(cred, {
+            'databaseURL': database_url
+        })
+
+
+def get_reference(path: str):
+    """
+    Get a DatabaseReference to the given path.
+    """
+    if _firebase_app is None:
+        raise RuntimeError("Firebase has not been initialized. Call init_firebase first.")
+    return db.reference(path)
+
+
+# CRUD operations for user data
+
+def get_user_data(user_id: str) -> Dict[str, Any]:
+    """
+    Retrieve all data for a given user.
+    """
+    ref = get_reference(f"users/{user_id}")
+    return ref.get() or {}
+
+
+def update_heart_rate(user_id: str, timestamp: str, bpm: float) -> None:
+    """
+    Write a heart rate record.
+    """
+    path = f"users/{user_id}/heart_rate/{timestamp}"
+    get_reference(path).set({'bpm': bpm})
+
+
+def update_spo2(user_id: str, timestamp: str, percentage: float) -> None:
+    """
+    Write an SpO2 record.
+    """
+    path = f"users/{user_id}/spo2/{timestamp}"
+    get_reference(path).set({'percentage': percentage})
+
+
+def update_latest_in4_hr(user_id: str, bpm: float) -> None:
+    """
+    Update the latest SpO2 value.
+    """
+    path = f"users/{user_id}/latest_in4/bpm"
+    get_reference(path).set(bpm)
+
+
+def update_latest_in4_spo2(user_id: str, percentage: float) -> None:
+    """
+    Update the latest SpO2 value.
+    """
+    path = f"users/{user_id}/latest_in4/percentage"
+    get_reference(path).set(percentage)
+
+
+def update_gps(user_id: str, timestamp: str, latitude: float, longitude: float, altitude: float) -> None:
+    """
+    Write a GPS location record.
+    """
+    path = f"users/{user_id}/gps/{timestamp}"
+    get_reference(path).set({
+        'latitude': latitude,
+        'longitude': longitude,
+        'altitude': altitude
+    })
+
+
+def update_latest_location(user_id: str, latitude: float, longitude: float, altitude: float, timestamp: str) -> None:
+    """
+    Update the latest GPS location.
+    """
+    path = f"users/{user_id}/latest_location"
+    get_reference(path).set({
+        'latitude': latitude,
+        'longitude': longitude,
+        'altitude': altitude,
+        'timestamp': timestamp
+    })
+
+
+
+def update_calories_daily(user_id: str, date: str, combined_daily_calories: float,
+                          heart_rate_calories: float, accelerometer_calories: float) -> None:
+    """
+    Write combined daily calories summary.
+    """
+    path = f"users/{user_id}/calories_daily/{date}"
+    get_reference(path).set({
+        'combined_daily_calories': combined_daily_calories,
+        'heart_rate_calories': heart_rate_calories,
+        'accelerometer_calories': accelerometer_calories
+    })
+
+
+def update_sleep_record(user_id: str, start_time: str, end_time: str, duration_hours: float) -> None:
+    """
+    Write a sleep session record.
+
+    The key format is "{start_time}_to_{end_time}".
+    """
+    key = f"{start_time}_to_{end_time}"
+    path = f"users/{user_id}/sleep/{key}"
+    get_reference(path).set({
+        'start_time': start_time,
+        'end_time': end_time,
+        'duration_hours': duration_hours
+    })
+
+
+def update_daily_sleep(user_id: str, date: str, sleep_duration: float) -> None:
+    """
+    Write total sleep duration for a specific date.
+    """
+    path = f"users/{user_id}/daily_sleep/{date}"
+    get_reference(path).set({'sleep_duration': sleep_duration})
+
 
 # Example usage
-if __name__ == "__main__":
-    # Initialize Firebase manager
-    firebase_manager = FirebaseManager("firebase_credentials.json")
-    
-    # Example: Store heart rate data
-    heart_rate_data = {
-        "bpm": 75,
-        "timestamp": datetime.now().isoformat()
-    }
-    firebase_manager.store_sensor_data("test_user", "heart_rate", heart_rate_data)
-    
-    # Example: Update daily stats
-    today = datetime.now().strftime("%Y-%m-%d")
-    daily_stats = {
-        "total_calories": 1250,
-        "sleep_duration": 7.5,
-        "average_heart_rate": 72
-    }
-    firebase_manager.update_daily_stats("test_user", today, daily_stats)
-    
-    # Example: Get latest heart rate
-    latest_hr = firebase_manager.get_latest_data("test_user", "heart_rate")
-    print(f"Latest heart rate: {latest_hr}")
+if __name__ == '__main__':
+    # Load config from environment or file
+    cred_path = os.getenv('FIREBASE_CREDENTIAL_PATH', 'path/to/serviceAccount.json')
+    db_url = os.getenv('FIREBASE_DATABASE_URL', 'https://<project>.firebaseio.com')
+    init_firebase(cred_path, db_url)
+
+    # Example writes
+    update_heart_rate('user123', '2025-04-22T18:00:00', 72.0)
+    update_gps('user123', '2025-04-22T18:00:00', 21.0278, 105.8342, 12.0)
+    update_latest_location('user123', 21.0278, 105.8342, 12.0, '2025-04-22T18:00:00')
+    update_sleep_record('user123', '2025-04-21T22:00:00', '2025-04-22T06:00:00', 8.0)
+    update_daily_sleep('user123', '2025-04-22', 8.0)
+    update_calories_daily('user123', '2025-04-22', 750.7, 300.5, 450.2)

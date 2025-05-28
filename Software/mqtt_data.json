@@ -1,0 +1,36 @@
+// TOPIC_HEART_RATE
+{
+  "user_id": "string",               // (tùy chọn, default "user123")
+  "bpm": number,                     // nhịp tim (beats per minute)
+  "weight_kg": number,               // cân nặng (kg), mặc định 70
+  "age": number,                     // tuổi, mặc định 30
+  "epoch_minutes": number            // khoảng thời gian đo (phút), mặc định 1
+}
+
+// TOPIC_SPO2
+
+{
+  "user_id": "string",               
+  "percentage": number               // giá trị SpO₂ (%) 
+}
+
+
+// TOPIC_ACCELEROMETER
+
+{
+  "user_id": "string",               
+  "total_vector": number,            // kết quả tổng vector gia tốc
+  "weight_kg": number,               // cân nặng (kg), mặc định 70
+  "epoch_minutes": number            // thời gian đo (phút), mặc định 1
+}
+
+
+// TOPIC_GPS
+
+{
+  "user_id": "string",               
+  "latitude": number,                // vĩ độ
+  "longitude": number,               // kinh độ
+  "altitude": number                 // độ cao (mét)
+}
+
