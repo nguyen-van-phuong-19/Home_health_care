@@ -108,3 +108,31 @@ class GpsTopic {
     'altitude': altitude,
   };
 }
+
+class CaloriesTopic {
+  final String userId;
+  final double caloTotal;
+  final double caloHr;
+  final double caloMotion;
+
+  CaloriesTopic({
+    required this.userId,
+    required this.caloTotal,
+    required this.caloHr,
+    required this.caloMotion,
+  });
+
+  factory CaloriesTopic.fromJson(Map<String, dynamic> json) => CaloriesTopic(
+    userId: json['user_id'] as String,
+    caloTotal: (json['calo_total'] as num).toDouble(),
+    caloHr: (json['calo_hr'] as num).toDouble(),
+    caloMotion: (json['calo_motion'] as num).toDouble(),
+  );
+
+  Map<String, dynamic> toJson() => {
+    'user_id': userId,
+    'calo_total': caloTotal,
+    'calo_hr': caloHr,
+    'calo_motion': caloMotion,
+  };
+}

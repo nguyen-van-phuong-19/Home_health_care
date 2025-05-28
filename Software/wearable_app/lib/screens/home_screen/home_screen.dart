@@ -1,7 +1,6 @@
-// lib/screens/home_screen/home_screen.dart
-
 // import 'dart:async';
 
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
@@ -18,7 +17,41 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final String _userId = 'user123';
+  final String _userId = FirebaseAuth.instance.currentUser?.uid ?? '';
+
+  /// Hiển thị dialog thông tin user
+  void _showUserInfo() {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    showDialog(
+      context: context,
+      builder:
+          (_) => AlertDialog(
+            title: const Text('Thông tin người dùng'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('UID: ${user.uid}'),
+                Text('Email: ${user.email ?? 'Không có'}'),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Đóng'),
+              ),
+            ],
+          ),
+    );
+  }
+
+  /// Đăng xuất tài khoản
+  Future<void> _signOut() async {
+    await FirebaseAuth.instance.signOut();
+    // Khi signOut, AuthenticationWrapper sẽ tự động quay về SignInScreen
+  }
 
   int _heartRate = 0;
   double _spo2 = 0.0;
@@ -31,19 +64,19 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-
+    // Listen to scan results and update UI
     // Listen latest heart rate
-    FirebaseService()
-        .listenToChanges('users/$_userId/latest_heart_rate')
-        .listen((event) {
-          final raw = event.snapshot.value;
-          if (raw is Map && raw['bpm'] != null) {
-            setState(() => _heartRate = (raw['bpm'] as num).toInt());
-          }
-        });
+    FirebaseService().listenToChanges('users/$_userId/latest_in4').listen((
+      event,
+    ) {
+      final raw = event.snapshot.value;
+      if (raw is Map && raw['bpm'] != null) {
+        setState(() => _heartRate = (raw['bpm'] as num).toInt());
+      }
+    });
 
     // Listen latest SpO2
-    FirebaseService().listenToChanges('users/$_userId/latest_spo2').listen((
+    FirebaseService().listenToChanges('users/$_userId/latest_in4').listen((
       event,
     ) {
       final raw = event.snapshot.value;
@@ -102,7 +135,42 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Dashboard')),
+      appBar: AppBar(
+        title: const Text('Dashboard'),
+        actions: [
+          PopupMenuButton<String>(
+            onSelected: (value) {
+              switch (value) {
+                case 'info':
+                  _showUserInfo();
+                  break;
+                case 'ble':
+                  // TODO: chuyển tới màn BLE của bạn
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Chức năng BLE chưa có')),
+                  );
+                  break;
+                case 'settings':
+                  // TODO: chuyển tới màn Cài đặt
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Chức năng Cài đặt chưa có')),
+                  );
+                  break;
+                case 'logout':
+                  _signOut();
+                  break;
+              }
+            },
+            itemBuilder:
+                (ctx) => const [
+                  PopupMenuItem(value: 'info', child: Text('Thông tin')),
+                  PopupMenuItem(value: 'ble', child: Text('BLE')),
+                  PopupMenuItem(value: 'settings', child: Text('Cài đặt')),
+                  PopupMenuItem(value: 'logout', child: Text('Đăng xuất')),
+                ],
+          ),
+        ],
+      ),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(16),

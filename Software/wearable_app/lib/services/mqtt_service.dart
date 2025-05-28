@@ -17,6 +17,7 @@ class MQTTService {
   static const String TOPIC_SPO2 = 'wearable_02420/spo2';
   static const String TOPIC_ACCELEROMETER = 'wearable_02420/accelerometer';
   static const String TOPIC_GPS = 'wearable_02420/gps';
+  static const String TOPIC_CALORIES = 'wearable_02420/calories';
 
   late MqttServerClient _client;
   final StreamController<MqttReceivedMessage<MqttMessage>> _msgController =

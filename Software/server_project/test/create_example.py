@@ -8,7 +8,7 @@ def initialize_firebase():
     """
     Khởi tạo kết nối tới Firebase Realtime Database
     """
-    cred = credentials.Certificate('sleep-system-7d563-firebase-adminsdk-fbsvc-df9f2e8fd0.json')
+    cred = credentials.Certificate('env/sleep-system-7d563-firebase-adminsdk-fbsvc-df9f2e8fd0.json')
     firebase_admin.initialize_app(cred, {
         "databaseURL": "https://sleep-system-7d563-default-rtdb.asia-southeast1.firebasedatabase.app/"
     })
@@ -37,28 +37,12 @@ def generate_sample_data(user_id: str, days: int = 10):
                 'percentage': round(random.uniform(90, 100), 1)
             })
 
-            # gps
-            lat = round(random.uniform(-90, 90), 6)
-            lng = round(random.uniform(-180, 180), 6)
-            alt = round(random.uniform(0, 1000), 2)
-            ref.child('gps').child(ts).set({
-                'latitude': lat,
-                'longitude': lng,
-                'altitude': alt
-            })
-
         # latest_spo2 & latest_location
         ref.child('latest_spo2').set({
             'percentage': round(random.uniform(90, 100), 1)
         })
         ref.child('latest_heart_rate').set({
             'bpm': round(random.uniform(90, 100), 1)
-        })
-        ref.child('latest_location').set({
-            'latitude': lat,
-            'longitude': lng,
-            'altitude': alt,
-            'timestamp': ts
         })
 
         # calories_by_heart_rate (theo ngày)
@@ -105,5 +89,5 @@ def generate_sample_data(user_id: str, days: int = 10):
 
 if __name__ == '__main__':
     initialize_firebase()
-    generate_sample_data('user123')
-    print("Đã tạo xong 10 bản ghi mẫu cho user123.")
+    generate_sample_data('2mrSt8vHRQd6kpPiHjuLobCrwK13')
+    print("Đã tạo xong 10 bản ghi mẫu cho 2mrSt8vHRQd6kpPiHjuLobCrwK13.")

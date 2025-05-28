@@ -1,108 +1,104 @@
-// // lib/services/ble_service.dart
+// ble_service.dart
+// Service to scan ESP32-S3 BLE advertisements (manufacturerId 0xABCD)
+// and continuously advertise phone BLE data (manufacturerId 0xABEF)
 
-// import 'dart:async';
-// import 'package:flutter_blue_plus/flutter_blue_plus.dart';
+import 'dart:async';
+import 'dart:convert';
+import 'dart:typed_data';
+import 'package:flutter_blue_plus/flutter_blue_plus.dart';
+import 'package:flutter_ble_peripheral/flutter_ble_peripheral.dart';
 
-// class BLEService {
-//   // Singleton
-//   static final BLEService _instance = BLEService._internal();
-//   factory BLEService() => _instance;
-//   BLEService._internal();
+/// Callback signature for receiving ESP32-S3 manufacturer data
+typedef OnEsp32Advertisement = void Function(List<int> data);
 
-//   /// Thiết bị đang kết nối
-//   BluetoothDevice? _device;
+class BleService {
+  BleService._();
+  static final BleService instance = BleService._();
 
-//   /// Map lưu characteristic để dễ truy cập
-//   final Map<Guid, BluetoothCharacteristic> _chars = {};
+  final FlutterBlePeripheral _peripheral = FlutterBlePeripheral();
 
-//   /// StreamController để phát sự kiện giá trị mới
-//   final StreamController<List<int>> _valueController =
-//       StreamController.broadcast();
+  StreamSubscription<List<ScanResult>>? _scanSubscription;
 
-//   Stream<List<int>> get onDataReceived => _valueController.stream;
+  /// Called when an ESP32-S3 BLE advertisement is received
+  OnEsp32Advertisement? onEsp32Advertisement;
 
-//   /// 1️⃣ Quét thiết bị ESP32-S3 (tùy chỉnh filter theo tên/UUID)
-//   Future<List<ScanResult>> scan({
-//     Duration timeout = const Duration(seconds: 5),
-//   }) async {
-//     final results = <ScanResult>[];
-//     FlutterBluePlus.startScan(timeout: timeout);
-//     await for (final scanResults in FlutterBluePlus.scanResults) {
-//       for (final res in scanResults) {
-//         // Lọc theo tên hoặc service UUID
-//         if (res.device.name.contains('ESP32-S3') ||
-//             res.advertisementData.serviceUuids.contains('YOUR_SERVICE_UUID')) {
-//           results.add(res);
-//         }
-//       }
-//     }
-//     await FlutterBluePlus.stopScan();
-//     return results;
-//   }
+  /// Starts BLE advertising and scanning
+  void start(Object? initialPayload) {
+    _startAdvertising(initialPayload);
+    _startScanning();
+  }
 
-//   /// 2️⃣ Kết nối đến thiết bị và discover dịch vụ/characteristics
-//   Future<void> connect(BluetoothDevice device) async {
-//     _device = device;
-//     await device.connect(); // tự reconnect=false
-//     final services = await device.discoverServices();
-//     for (var svc in services) {
-//       for (var chr in svc.characteristics) {
-//         _chars[chr.uuid] = chr;
-//       }
-//     }
-//   }
+  /// Stops BLE advertising and scanning
+  void stop() {
+    _stopAdvertising();
+    _stopScanning();
+  }
 
-//   /// 3️⃣ Đọc dữ liệu từ characteristic
-//   Future<List<int>> read(Guid charUuid) async {
-//     final chr = _chars[charUuid]!;
-//     final data =
-//         await chr
-//             .read(); // trả về List<int> :contentReference[oaicite:6]{index=6}
-//     return data;
-//   }
+  void _startAdvertising([Object? payload]) {
+    final List<int> bytes = _buildPayloadBytes(payload);
+    final AdvertiseData data = AdvertiseData(
+      includeDeviceName: true,
+      manufacturerId: 0xABEF,
+      manufacturerData: Uint8List.fromList(
+        bytes,
+      ), // initial payload, update if needed
+    );
+    _peripheral.start(
+      advertiseData: data,
+      advertiseSettings: AdvertiseSettings(
+        advertiseMode: AdvertiseMode.advertiseModeLowLatency,
+        txPowerLevel: AdvertiseTxPower.advertiseTxPowerHigh,
+        timeout: 18000000,
+      ),
+    );
+  }
 
-//   /// 4️⃣ Ghi bytes vào characteristic
-//   Future<void> writeBytes(
-//     Guid charUuid,
-//     List<int> data, {
-//     bool withResponse = true,
-//   }) async {
-//     final chr = _chars[charUuid]!;
-//     await chr.write(data, withoutResponse: !withResponse);
-//   }
+  /// Convert payload to byte list for advertising
+  List<int> _buildPayloadBytes(Object? payload) {
+    if (payload == null) {
+      return <int>[];
+    } else if (payload is String) {
+      return utf8.encode(payload);
+    } else if (payload is double) {
+      final bd = ByteData(4)..setFloat32(0, payload, Endian.little);
+      return bd.buffer.asUint8List();
+    } else if (payload is int) {
+      final bd = ByteData(4)..setInt32(0, payload, Endian.little);
+      return bd.buffer.asUint8List();
+    } else if (payload is List<int>) {
+      return payload;
+    } else {
+      throw ArgumentError('Unsupported payload type: ${payload.runtimeType}');
+    }
+  }
 
-//   /// 5️⃣ Ghi string (JSON hoặc text) vào characteristic
-//   Future<void> writeString(
-//     Guid charUuid,
-//     String text, {
-//     bool withResponse = true,
-//   }) async {
-//     final chr = _chars[charUuid]!;
-//     final bytes = text.codeUnits;
-//     await chr.write(bytes, withoutResponse: !withResponse);
-//   }
+  /// Update the advertised manufacturer data payload
+  void updateAdvertiseData(Object payload) {
+    _peripheral.stop();
+    _startAdvertising(payload);
+  }
 
-//   /// 6️⃣ Đăng ký nhận notify từ characteristic
-//   Future<void> subscribe(Guid charUuid) async {
-//     final chr = _chars[charUuid]!;
-//     await chr.setNotifyValue(true);
-//     chr.value.listen((data) {
-//       _valueController.add(
-//         data,
-//       ); // phát ra stream :contentReference[oaicite:7]{index=7}
-//     });
-//   }
+  void _stopAdvertising() {
+    _peripheral.stop();
+  }
 
-//   /// 7️⃣ Hủy đăng ký notify
-//   Future<void> unsubscribe(Guid charUuid) async {
-//     final chr = _chars[charUuid]!;
-//     await chr.setNotifyValue(false);
-//   }
+  void _startScanning() {
+    // 0 duration = infinite scan until stopped
+    FlutterBluePlus.startScan(timeout: Duration(days: 365));
+    _scanSubscription = FlutterBluePlus.scanResults.listen((results) {
+      for (final ScanResult r in results) {
+        final mfg = r.advertisementData.manufacturerData;
+        // print(mfg);
+        if (mfg.containsKey(0xABCD)) {
+          final data = mfg[0xABCD]!;
+          onEsp32Advertisement?.call(data);
+        }
+      }
+    });
+  }
 
-//   /// 8️⃣ Ngắt kết nối
-//   Future<void> disconnect() async {
-//     await _device?.disconnect();
-//     _chars.clear();
-//     _device = null;
-//   }
-// }
+  void _stopScanning() {
+    _scanSubscription?.cancel();
+    FlutterBluePlus.stopScan();
+  }
+}
