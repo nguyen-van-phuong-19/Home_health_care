@@ -33,10 +33,11 @@ today_pr = datetime.fromisoformat(timestamp).strftime("%Y-%m-%d")
 is_new_day = False
 configured = False
 
-duration_h = 0.1
+duration_h = 0.0001
+last_duration = 0
 
 # Initialize Firebase service
-CREDENTIAL_PATH = "env/sleep-system-7d563-firebase-adminsdk-fbsvc-df9f2e8fd0.json"
+CREDENTIAL_PATH = "env/sleep-system-7d563-firebase.json"
 DATABASE_URL = (
     "https://sleep-system-7d563-default-rtdb.asia-southeast1.firebasedatabase.app/"
 )
@@ -81,6 +82,7 @@ def on_message(client, userdata, msg):
         elif bpm > 70 and is_sleeping:
             is_sleeping = False
             end_time = datetime.fromisoformat(timestamp)
+            last_duration = duration_h
             duration_h = (end_time - sleep_start_time).total_seconds() / 3600
             service.add_sleep_record(
                 user_id,
@@ -88,6 +90,7 @@ def on_message(client, userdata, msg):
                 timestamp,
                 duration_h,
             )
+            duration_h = duration_h + last_duration
             service.add_daily_sleep(
                 user_id,
                 today,
