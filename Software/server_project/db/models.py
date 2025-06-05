@@ -35,6 +35,14 @@ class LatestLocation:
         return asdict(self)
 
 @dataclass
+class LatestHeartRate:
+    bpm: float
+    timestamp: str = ""
+
+    def to_dict(self) -> dict:
+        return asdict(self)
+
+@dataclass
 class SleepRecord:
     start_time: str
     end_time: str
@@ -80,6 +88,7 @@ class UserData:
     calories_by_heart_rate: Dict[str, CaloriesByHeartRate] = field(default_factory=dict)
     spo2: Dict[str, Spo2Record] = field(default_factory=dict)
     latest_spo2: Optional[Spo2Record] = None
+    latest_heart_rate: Optional[LatestHeartRate] = None
     calorise_by_accelerometer: Dict[str, CaloriesByAccelerometer] = field(default_factory=dict)
     gps: Dict[str, LocationRecord] = field(default_factory=dict)
     latest_location: Optional[LatestLocation] = None
@@ -96,6 +105,7 @@ class UserData:
             "calories_by_heart_rate": {k: v.to_dict() for k, v in self.calories_by_heart_rate.items()},
             "spo2": {k: v.to_dict() for k, v in self.spo2.items()},
             "latest_spo2": self.latest_spo2.to_dict() if self.latest_spo2 else {},
+            "latest_heart_rate": self.latest_heart_rate.to_dict() if self.latest_heart_rate else {},
             "calorise_by_accelerometer": {k: v.to_dict() for k, v in self.calorise_by_accelerometer.items()},
             "gps": {k: v.to_dict() for k, v in self.gps.items()},
             "latest_location": self.latest_location.to_dict() if self.latest_location else {},

@@ -61,19 +61,18 @@ def update_spo2(user_id: str, timestamp: str, percentage: float) -> None:
 
 
 def update_latest_in4_hr(user_id: str, bpm: float) -> None:
-    """
-    Update the latest SpO2 value.
-    """
-    path = f"users/{user_id}/latest_in4/bpm"
-    get_reference(path).set(bpm)
+    """Update the latest heart rate value."""
+    # Other parts of the application read this value from
+    # `latest_heart_rate`, so store it under the same path.
+    path = f"users/{user_id}/latest_heart_rate"
+    get_reference(path).set({"bpm": bpm})
 
 
 def update_latest_in4_spo2(user_id: str, percentage: float) -> None:
-    """
-    Update the latest SpO2 value.
-    """
-    path = f"users/{user_id}/latest_in4/percentage"
-    get_reference(path).set(percentage)
+    """Update the latest SpO2 value."""
+    # Keep the storage format consistent with generated test data
+    path = f"users/{user_id}/latest_spo2"
+    get_reference(path).set({"percentage": percentage})
 
 
 def update_gps(user_id: str, timestamp: str, latitude: float, longitude: float, altitude: float) -> None:
