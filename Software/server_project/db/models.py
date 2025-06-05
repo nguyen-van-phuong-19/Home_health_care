@@ -54,6 +54,7 @@ class SleepRecord:
 @dataclass
 class DailySleep:
     sleep_duration: float
+    is_sleeping: bool = False
 
     def to_dict(self) -> dict:
         return asdict(self)

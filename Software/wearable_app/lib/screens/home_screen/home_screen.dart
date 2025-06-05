@@ -57,6 +57,7 @@ class _HomeScreenState extends State<HomeScreen> {
   double _spo2 = 0.0;
   double _calories = 0.0;
   double _sleepHours = 0.0;
+  bool _isSleeping = false;
 
   double _latitude = 0.0;
   double _longitude = 0.0;
@@ -105,10 +106,14 @@ class _HomeScreenState extends State<HomeScreen> {
         .listenToChanges('users/$_userId/daily_sleep/$today')
         .listen((event) {
           final raw = event.snapshot.value;
-          if (raw is Map && raw['sleep_duration'] != null) {
-            setState(
-              () => _sleepHours = (raw['sleep_duration'] as num).toDouble(),
-            );
+          if (raw is Map) {
+            if (raw['sleep_duration'] != null) {
+              _sleepHours = (raw['sleep_duration'] as num).toDouble();
+            }
+            if (raw['is_sleeping'] != null) {
+              _isSleeping = raw['is_sleeping'] as bool;
+            }
+            setState(() {});
           }
         });
 
@@ -272,14 +277,19 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            _formatSleep(_sleepHours),
-                            style: const TextStyle(fontSize: 16),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
+                          _formatSleep(_sleepHours),
+                          style: const TextStyle(fontSize: 16),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          _isSleeping ? 'Đang ngủ' : 'Đã thức',
+                          style: const TextStyle(fontSize: 14),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
+              ),
               ),
               const SizedBox(height: 16),
 

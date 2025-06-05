@@ -108,7 +108,8 @@ class ProcessDataService {
       durationHours: durationHours,
     );
     final date = startTime.substring(0, 10);
-    user.dailySleep[date] = DailySleep(sleepDuration: durationHours);
+    user.dailySleep[date] =
+        DailySleep(sleepDuration: durationHours, isSleeping: false);
     await _saveUser(user);
   }
 
