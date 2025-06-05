@@ -33,7 +33,7 @@ today_pr = datetime.fromisoformat(timestamp).strftime("%Y-%m-%d")
 is_new_day = False
 configured = False
 
-duration_h = 0.0001
+duration_h = 0.000001
 last_duration = duration_h
 last_duration = 0
 
@@ -98,9 +98,10 @@ def on_message(client, userdata, msg):
                 duration_h,
                 False,
             )
-        if sleep_start_time != None:
+        if sleep_start_time != None and is_sleeping:
             now_time = datetime.fromisoformat(timestamp)
             duration_h = (now_time - sleep_start_time).total_seconds() / 3600
+            duration_h = duration_h + last_duration
         if today_pr != today:
             is_new_day = True
         if is_new_day:
