@@ -276,19 +276,26 @@ class SleepSession {
 class DailySleep {
   final double sleepDuration;
   final bool isSleeping;
+  final String? sleepStartTime;
 
-  DailySleep({required this.sleepDuration, required this.isSleeping});
+  DailySleep({
+    required this.sleepDuration,
+    required this.isSleeping,
+    this.sleepStartTime,
+  });
 
   factory DailySleep.fromJson(Map<String, dynamic> json) {
     return DailySleep(
       sleepDuration: (json['sleep_duration'] as num).toDouble(),
       isSleeping: (json['is_sleeping'] as bool? ?? false),
+      sleepStartTime: json['sleep_start_time'] as String?,
     );
   }
 
   Map<String, dynamic> toJson() => {
         'sleep_duration': sleepDuration,
         'is_sleeping': isSleeping,
+        if (sleepStartTime != null) 'sleep_start_time': sleepStartTime,
       };
 }
 

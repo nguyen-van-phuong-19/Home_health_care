@@ -55,6 +55,7 @@ class SleepRecord:
 class DailySleep:
     sleep_duration: float
     is_sleeping: bool = False
+    sleep_start_time: Optional[str] = None
 
     def to_dict(self) -> dict:
         return asdict(self)

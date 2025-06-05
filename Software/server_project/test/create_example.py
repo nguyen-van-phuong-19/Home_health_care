@@ -59,7 +59,9 @@ def generate_sample_data(user_id: str, days: int = 10):
         # daily_sleep: tổng số giờ ngủ trong ngày
         sleep_duration = round(random.uniform(5, 8), 2)
         ref.child('daily_sleep').child(date_str).set({
-            'sleep_duration': sleep_duration
+            'sleep_duration': sleep_duration,
+            'is_sleeping': False,
+            'sleep_start_time': None,
         })
 
         # === SLEEP: 1 bản ghi mỗi ngày ===

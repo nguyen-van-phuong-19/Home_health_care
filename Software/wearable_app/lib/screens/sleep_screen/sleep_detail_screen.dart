@@ -19,12 +19,28 @@ class _SleepDetailScreenState extends State<SleepDetailScreen> {
   late Future<Map<DateTime, List<Map<String, dynamic>>>> _sessionsFuture;
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
+  bool _isSleeping = false;
+  DateTime? _sleepStartTime;
 
   @override
   void initState() {
     super.initState();
     _selectedDay = DateTime.now();
     _sessionsFuture = _fetchSleepSessions();
+    final today = DateTime.now().toIso8601String().split('T').first;
+    FirebaseService()
+        .listenToChanges('users/${widget.userId}/daily_sleep/$today')
+        .listen((event) {
+      final raw = event.snapshot.value;
+      if (raw is Map) {
+        setState(() {
+          _isSleeping = raw['is_sleeping'] as bool? ?? false;
+          final startStr = raw['sleep_start_time'] as String?;
+          _sleepStartTime =
+              startStr != null ? DateTime.tryParse(startStr) : null;
+        });
+      }
+    });
   }
 
   /// 1) Load all sleep sessions và group theo “YYYY-MM-DD”
@@ -82,6 +98,12 @@ class _SleepDetailScreenState extends State<SleepDetailScreen> {
     return '${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}';
   }
 
+  String _formatTime(DateTime dt) {
+    final h = dt.hour.toString().padLeft(2, '0');
+    final m = dt.minute.toString().padLeft(2, '0');
+    return '$h:$m';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -123,6 +145,18 @@ class _SleepDetailScreenState extends State<SleepDetailScreen> {
             padding: const EdgeInsets.all(16),
             child: Column(
               children: [
+                if (_isSleeping && _sleepStartTime != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 16),
+                    child: Text(
+                      'Đang ngủ từ ${_formatTime(_sleepStartTime!)} đến ${_formatTime(DateTime.now())}',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.deepPurple,
+                      ),
+                    ),
+                  ),
                 // --- Calendar để chọn ngày ---
                 TableCalendar(
                   firstDay: firstDay,

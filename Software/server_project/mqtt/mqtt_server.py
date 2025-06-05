@@ -11,6 +11,7 @@ from datetime import datetime, timedelta
 import paho.mqtt.client as mqtt
 import mqtt.topics as topics
 from db.base import BaseService
+from db.firebase_manager import fetch_daily_sleep
 
 # Constants for calculations
 CALORIES_MET_FACTORS = {
@@ -22,7 +23,7 @@ CALORIES_MET_FACTORS = {
 
 # Globals for sleep detection
 is_sleeping = False
-sleep_start_time: datetime = None
+sleep_start_time: datetime | None = None
 
 calo_pr = 0
 calo_total = 0
@@ -43,6 +44,22 @@ DATABASE_URL = (
     "https://sleep-system-7d563-default-rtdb.asia-southeast1.firebasedatabase.app/"
 )
 service = BaseService(CREDENTIAL_PATH, DATABASE_URL)
+
+# Load existing sleep information when starting the server
+DEFAULT_USER_ID = "user123"
+today_str = datetime.now().strftime("%Y-%m-%d")
+try:
+    existing = fetch_daily_sleep(DEFAULT_USER_ID, today_str)
+    if existing:
+        # restore previous sleep start time and sleeping state
+        if existing.get("sleep_start_time"):
+            sleep_start_time = datetime.fromisoformat(existing["sleep_start_time"])
+            is_sleeping = existing.get("is_sleeping", False)
+        # pick up accumulated duration for today
+        duration_h = existing.get("sleep_duration", 0.000001)
+        last_duration = duration_h
+except Exception as e:
+    print(f"Failed to fetch initial sleep state: {e}")
 
 # MQTT callbacks
 def on_connect(client, userdata, flags, rc):
@@ -80,6 +97,13 @@ def on_message(client, userdata, msg):
             is_sleeping = True
             sleep_start_time = datetime.fromisoformat(timestamp)
             print(f"Sleep detected at {sleep_start_time}")
+            service.add_daily_sleep(
+                user_id,
+                today,
+                duration_h,
+                True,
+                sleep_start_time.strftime("%Y-%m-%dT%H:%M:%S"),
+            )
         elif bpm > 70 and is_sleeping:
             is_sleeping = False
             end_time = datetime.fromisoformat(timestamp)
@@ -97,6 +121,7 @@ def on_message(client, userdata, msg):
                 today,
                 duration_h,
                 False,
+                None,
             )
         if sleep_start_time != None and is_sleeping:
             now_time = datetime.fromisoformat(timestamp)
@@ -118,7 +143,13 @@ def on_message(client, userdata, msg):
             print("old day")
             configured = False
         today_pr = today
-        service.add_daily_sleep(user_id, today, duration_h, is_sleeping)
+        service.add_daily_sleep(
+            user_id,
+            today,
+            duration_h,
+            is_sleeping,
+            sleep_start_time.strftime("%Y-%m-%dT%H:%M:%S") if is_sleeping and sleep_start_time else None,
+        )
         # after accelerometer processed too, combine daily calories
         # leave combine step to message ordering or implement separately
 
