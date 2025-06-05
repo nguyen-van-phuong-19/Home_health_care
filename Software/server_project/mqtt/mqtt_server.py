@@ -79,6 +79,7 @@ def on_message(client, userdata, msg):
             is_sleeping = True
             sleep_start_time = datetime.fromisoformat(timestamp)
             print(f"Sleep detected at {sleep_start_time}")
+            service.add_daily_sleep(user_id, today, duration_h, True)
         elif bpm > 70 and is_sleeping:
             is_sleeping = False
             end_time = datetime.fromisoformat(timestamp)
@@ -95,6 +96,7 @@ def on_message(client, userdata, msg):
                 user_id,
                 today,
                 duration_h,
+                False,
             )
         if today_pr != today:
             is_new_day = True

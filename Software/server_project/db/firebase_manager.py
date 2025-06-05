@@ -129,12 +129,16 @@ def update_sleep_record(user_id: str, start_time: str, end_time: str, duration_h
     })
 
 
-def update_daily_sleep(user_id: str, date: str, sleep_duration: float) -> None:
+def update_daily_sleep(
+    user_id: str, date: str, sleep_duration: float, is_sleeping: bool
+) -> None:
     """
-    Write total sleep duration for a specific date.
+    Write total sleep duration for a specific date and current sleeping state.
     """
     path = f"users/{user_id}/daily_sleep/{date}"
-    get_reference(path).set({'sleep_duration': sleep_duration})
+    get_reference(path).set(
+        {"sleep_duration": sleep_duration, "is_sleeping": is_sleeping}
+    )
 
 
 # Example usage
@@ -149,5 +153,5 @@ if __name__ == '__main__':
     update_gps('user123', '2025-04-22T18:00:00', 21.0278, 105.8342, 12.0)
     update_latest_location('user123', 21.0278, 105.8342, 12.0, '2025-04-22T18:00:00')
     update_sleep_record('user123', '2025-04-21T22:00:00', '2025-04-22T06:00:00', 8.0)
-    update_daily_sleep('user123', '2025-04-22', 8.0)
+    update_daily_sleep('user123', '2025-04-22', 8.0, False)
     update_calories_daily('user123', '2025-04-22', 750.7, 300.5, 450.2)
