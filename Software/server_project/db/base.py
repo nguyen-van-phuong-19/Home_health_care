@@ -20,6 +20,7 @@ from db.models import (
     Spo2Record,
     LocationRecord,
     LatestLocation,
+    LatestHeartRate,
     CaloriesByHeartRate,
     CaloriesByAccelerometer,
     CaloriesDaily,
@@ -53,6 +54,10 @@ class BaseService:
         lat_spo2 = raw.get("latest_spo2")
         if lat_spo2:
             user.latest_spo2 = Spo2Record(**lat_spo2)
+        # Latest heart rate
+        lat_hr = raw.get("latest_heart_rate")
+        if lat_hr:
+            user.latest_heart_rate = LatestHeartRate(**lat_hr)
 
         # GPS history
         for ts, rec in raw.get("gps", {}).items():

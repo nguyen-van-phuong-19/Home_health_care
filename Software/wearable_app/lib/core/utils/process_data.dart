@@ -18,6 +18,7 @@ class ProcessDataService {
 
     final user = await _loadUser(userId);
     user.heartRate[timestamp] = HeartRateEntry(bpm: bpm);
+    user.latestHeartRate = LatestHeartRate(bpm: bpm, timestamp: timestamp);
 
     final weight = (data['weight_kg'] as num?)?.toDouble() ?? 70.0;
     final age = (data['age'] as num?)?.toDouble() ?? 30.0;
@@ -159,6 +160,12 @@ class ProcessDataService {
   Future<LatestSpO2> getLatestSpO2(String userId) async {
     final user = await getUserModel(userId);
     return user.latestSpO2;
+  }
+
+  /// Lấy nhịp tim mới nhất
+  Future<LatestHeartRate> getLatestHeartRate(String userId) async {
+    final user = await getUserModel(userId);
+    return user.latestHeartRate;
   }
 
   /// Lấy calories từ accelerometer cho ngày
