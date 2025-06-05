@@ -35,8 +35,9 @@ is_new_day = False
 configured = False
 
 duration_h = 0.000001
-last_duration = duration_h
 last_duration = 0
+last_duration = duration_h
+
 
 # Initialize Firebase service
 CREDENTIAL_PATH = "env/sleep-system-7d563-firebase.json"
@@ -46,7 +47,7 @@ DATABASE_URL = (
 service = BaseService(CREDENTIAL_PATH, DATABASE_URL)
 
 # Load existing sleep information when starting the server
-DEFAULT_USER_ID = "user123"
+DEFAULT_USER_ID = "2mrSt8vHRQd6kpPiHjuLobCrwK13"
 today_str = datetime.now().strftime("%Y-%m-%d")
 try:
     existing = fetch_daily_sleep(DEFAULT_USER_ID, today_str)
@@ -97,13 +98,6 @@ def on_message(client, userdata, msg):
             is_sleeping = True
             sleep_start_time = datetime.fromisoformat(timestamp)
             print(f"Sleep detected at {sleep_start_time}")
-            service.add_daily_sleep(
-                user_id,
-                today,
-                duration_h,
-                True,
-                sleep_start_time.strftime("%Y-%m-%dT%H:%M:%S"),
-            )
         elif bpm > 70 and is_sleeping:
             is_sleeping = False
             end_time = datetime.fromisoformat(timestamp)
@@ -123,10 +117,6 @@ def on_message(client, userdata, msg):
                 False,
                 None,
             )
-        if sleep_start_time != None and is_sleeping:
-            now_time = datetime.fromisoformat(timestamp)
-            duration_h = (now_time - sleep_start_time).total_seconds() / 3600
-            duration_h = duration_h + last_duration
         if today_pr != today:
             is_new_day = True
         if is_new_day:
@@ -143,12 +133,15 @@ def on_message(client, userdata, msg):
             print("old day")
             configured = False
         today_pr = today
-        service.add_daily_sleep(
-            user_id,
-            today,
-            duration_h,
-            is_sleeping,
-            sleep_start_time.strftime("%Y-%m-%dT%H:%M:%S") if is_sleeping and sleep_start_time else None,
+        if sleep_start_time != None and is_sleeping:
+            now_time = datetime.fromisoformat(timestamp)
+            duration_h = (now_time - sleep_start_time).total_seconds() / 3600
+            service.add_daily_sleep(
+                user_id,
+                today,
+                duration_h + last_duration,
+                is_sleeping,
+                sleep_start_time.strftime("%Y-%m-%dT%H:%M:%S") if is_sleeping and sleep_start_time else None,
         )
         # after accelerometer processed too, combine daily calories
         # leave combine step to message ordering or implement separately
