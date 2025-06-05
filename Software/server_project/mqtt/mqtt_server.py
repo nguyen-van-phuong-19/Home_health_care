@@ -34,6 +34,7 @@ is_new_day = False
 configured = False
 
 duration_h = 0.0001
+last_duration = duration_h
 last_duration = 0
 
 # Initialize Firebase service
@@ -55,7 +56,7 @@ def on_connect(client, userdata, flags, rc):
 
 
 def on_message(client, userdata, msg):
-    global is_sleeping, sleep_start_time, today_pr, calo_pr, calo_total, duration_h, is_new_day, configured
+    global is_sleeping, sleep_start_time, today_pr, calo_pr, calo_total, duration_h, is_new_day, configured, last_duration
     topic = msg.topic
     if topic == topics.MQTT_TOPIC_SLEEP:
         return
@@ -79,11 +80,9 @@ def on_message(client, userdata, msg):
             is_sleeping = True
             sleep_start_time = datetime.fromisoformat(timestamp)
             print(f"Sleep detected at {sleep_start_time}")
-            service.add_daily_sleep(user_id, today, duration_h, True)
         elif bpm > 70 and is_sleeping:
             is_sleeping = False
             end_time = datetime.fromisoformat(timestamp)
-            last_duration = duration_h
             duration_h = (end_time - sleep_start_time).total_seconds() / 3600
             service.add_sleep_record(
                 user_id,
@@ -92,12 +91,16 @@ def on_message(client, userdata, msg):
                 duration_h,
             )
             duration_h = duration_h + last_duration
+            last_duration = duration_h
             service.add_daily_sleep(
                 user_id,
                 today,
                 duration_h,
                 False,
             )
+        if sleep_start_time != None:
+            now_time = datetime.fromisoformat(timestamp)
+            duration_h = (now_time - sleep_start_time).total_seconds() / 3600
         if today_pr != today:
             is_new_day = True
         if is_new_day:
@@ -114,6 +117,7 @@ def on_message(client, userdata, msg):
             print("old day")
             configured = False
         today_pr = today
+        service.add_daily_sleep(user_id, today, duration_h, is_sleeping)
         # after accelerometer processed too, combine daily calories
         # leave combine step to message ordering or implement separately
 
