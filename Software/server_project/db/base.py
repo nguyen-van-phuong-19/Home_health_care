@@ -119,9 +119,20 @@ class BaseService:
         update_sleep_record(user_id, start_time, end_time, duration_hours)
 
     def add_daily_sleep(
-        self, user_id: str, date: str, sleep_duration: float, is_sleeping: bool
+        self,
+        user_id: str,
+        date: str,
+        sleep_duration: float,
+        is_sleeping: bool,
+        sleep_start_time: Optional[str] | None = None,
     ) -> None:
-        update_daily_sleep(user_id, date, sleep_duration, is_sleeping)
+        update_daily_sleep(
+            user_id,
+            date,
+            sleep_duration,
+            is_sleeping,
+            sleep_start_time,
+        )
 
 # Example Usage
 if __name__ == '__main__':

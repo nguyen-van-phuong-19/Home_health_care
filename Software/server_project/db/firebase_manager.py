@@ -130,15 +130,27 @@ def update_sleep_record(user_id: str, start_time: str, end_time: str, duration_h
 
 
 def update_daily_sleep(
-    user_id: str, date: str, sleep_duration: float, is_sleeping: bool
+    user_id: str,
+    date: str,
+    sleep_duration: float,
+    is_sleeping: bool,
+    sleep_start_time: Optional[str] | None = None,
 ) -> None:
     """
     Write total sleep duration for a specific date and current sleeping state.
+    Optionally store ``sleep_start_time`` when the user is currently sleeping.
     """
     path = f"users/{user_id}/daily_sleep/{date}"
-    get_reference(path).set(
-        {"sleep_duration": sleep_duration, "is_sleeping": is_sleeping}
-    )
+    data = {"sleep_duration": sleep_duration, "is_sleeping": is_sleeping}
+    if sleep_start_time is not None:
+        data["sleep_start_time"] = sleep_start_time
+    get_reference(path).set(data)
+
+
+def fetch_daily_sleep(user_id: str, date: str) -> Optional[Dict[str, Any]]:
+    """Return the raw ``daily_sleep`` entry for ``date`` if present."""
+    path = f"users/{user_id}/daily_sleep/{date}"
+    return get_reference(path).get()
 
 
 # Example usage
