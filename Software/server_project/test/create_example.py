@@ -62,6 +62,7 @@ def generate_sample_data(user_id: str, days: int = 10):
             'sleep_duration': sleep_duration,
             'is_sleeping': False,
             'sleep_start_time': None,
+            'now_time': day_dt.strftime('%Y-%m-%dT%H:%M:%S'),
         })
 
         # === SLEEP: 1 bản ghi mỗi ngày ===

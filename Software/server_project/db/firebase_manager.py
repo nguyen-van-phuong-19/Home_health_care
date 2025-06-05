@@ -135,6 +135,7 @@ def update_daily_sleep(
     sleep_duration: float,
     is_sleeping: bool,
     sleep_start_time: Optional[str] | None = None,
+    now_time: Optional[str] | None = None,
 ) -> None:
     """
     Write total sleep duration for a specific date and current sleeping state.
@@ -144,6 +145,8 @@ def update_daily_sleep(
     data = {"sleep_duration": sleep_duration, "is_sleeping": is_sleeping}
     if sleep_start_time is not None:
         data["sleep_start_time"] = sleep_start_time
+    if now_time is not None:
+        data["now_time"] = now_time
     get_reference(path).set(data)
 
 
