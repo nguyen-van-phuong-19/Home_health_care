@@ -6,6 +6,7 @@ class UserModel {
   final Map<String, CaloriesByHeartRateEntry> caloriesByHeartRate;
   final Map<String, Spo2Entry> spo2;
   LatestSpO2 latestSpO2;
+  LatestHeartRate latestHeartRate;
   final Map<String, AccelerometerCaloriesEntry> caloriesByAccelerometer;
   final Map<String, GpsEntry> gps;
   late final LatestLocation latestLocation;
@@ -18,6 +19,7 @@ class UserModel {
     required this.caloriesByHeartRate,
     required this.spo2,
     required this.latestSpO2,
+    required this.latestHeartRate,
     required this.caloriesByAccelerometer,
     required this.gps,
     required this.latestLocation,
@@ -44,7 +46,10 @@ class UserModel {
           ) ??
           {},
       latestSpO2: LatestSpO2.fromJson(
-        json['latest_in4'] as Map<String, dynamic>? ?? {},
+        json['latest_spo2'] as Map<String, dynamic>? ?? {},
+      ),
+      latestHeartRate: LatestHeartRate.fromJson(
+        json['latest_heart_rate'] as Map<String, dynamic>? ?? {},
       ),
       caloriesByAccelerometer:
           (json['calorise_by_accelerometer'] as Map<String, dynamic>?)?.map(
@@ -84,6 +89,7 @@ class UserModel {
     ),
     'spo2': spo2.map((k, v) => MapEntry(k, v.toJson())),
     'latest_spo2': latestSpO2.toJson(),
+    'latest_heart_rate': latestHeartRate.toJson(),
     'calorise_by_accelerometer': caloriesByAccelerometer.map(
       (k, v) => MapEntry(k, v.toJson()),
     ),
@@ -150,6 +156,25 @@ class LatestSpO2 {
   }
 
   Map<String, dynamic> toJson() => {'percentage': percentage};
+}
+
+class LatestHeartRate {
+  final num bpm;
+  final String timestamp;
+
+  LatestHeartRate({required this.bpm, this.timestamp = ''});
+
+  factory LatestHeartRate.fromJson(Map<String, dynamic> json) {
+    return LatestHeartRate(
+      bpm: json['bpm'] as num? ?? 0,
+      timestamp: json['timestamp'] as String? ?? '',
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'bpm': bpm,
+        'timestamp': timestamp,
+      };
 }
 
 class AccelerometerCaloriesEntry {

@@ -66,7 +66,7 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     // Listen to scan results and update UI
     // Listen latest heart rate
-    FirebaseService().listenToChanges('users/$_userId/latest_in4').listen((
+    FirebaseService().listenToChanges('users/$_userId/latest_heart_rate').listen((
       event,
     ) {
       final raw = event.snapshot.value;
@@ -76,7 +76,7 @@ class _HomeScreenState extends State<HomeScreen> {
     });
 
     // Listen latest SpO2
-    FirebaseService().listenToChanges('users/$_userId/latest_in4').listen((
+    FirebaseService().listenToChanges('users/$_userId/latest_spo2').listen((
       event,
     ) {
       final raw = event.snapshot.value;
