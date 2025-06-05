@@ -58,7 +58,24 @@ try:
             is_sleeping = existing.get("is_sleeping", False)
         # pick up accumulated duration for today
         duration_h = existing.get("sleep_duration", 0.000001)
-        last_duration = duration_h
+        now_time_str = existing.get("now_time")
+        if now_time_str and sleep_start_time:
+            now_time_dt = datetime.fromisoformat(now_time_str)
+            last_duration = duration_h - (
+                now_time_dt - sleep_start_time
+            ).total_seconds() / 3600
+        else:
+            last_duration = duration_h
+        # update record with current server start time
+        current_ts = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+        service.add_daily_sleep(
+            DEFAULT_USER_ID,
+            today_str,
+            duration_h,
+            is_sleeping,
+            existing.get("sleep_start_time"),
+            current_ts,
+        )
 except Exception as e:
     print(f"Failed to fetch initial sleep state: {e}")
 
@@ -116,6 +133,7 @@ def on_message(client, userdata, msg):
                 duration_h,
                 False,
                 None,
+                timestamp,
             )
         if today_pr != today:
             is_new_day = True
@@ -142,6 +160,7 @@ def on_message(client, userdata, msg):
                 duration_h + last_duration,
                 is_sleeping,
                 sleep_start_time.strftime("%Y-%m-%dT%H:%M:%S") if is_sleeping and sleep_start_time else None,
+                timestamp,
         )
         # after accelerometer processed too, combine daily calories
         # leave combine step to message ordering or implement separately

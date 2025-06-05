@@ -125,6 +125,7 @@ class BaseService:
         sleep_duration: float,
         is_sleeping: bool,
         sleep_start_time: Optional[str] | None = None,
+        now_time: Optional[str] | None = None,
     ) -> None:
         update_daily_sleep(
             user_id,
@@ -132,6 +133,7 @@ class BaseService:
             sleep_duration,
             is_sleeping,
             sleep_start_time,
+            now_time,
         )
 
 # Example Usage
