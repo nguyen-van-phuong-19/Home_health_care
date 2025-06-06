@@ -76,6 +76,8 @@ try:
             existing.get("sleep_start_time"),
             current_ts,
         )
+        print(duration_h)
+        print(last_duration)
 except Exception as e:
     print(f"Failed to fetch initial sleep state: {e}")
 
