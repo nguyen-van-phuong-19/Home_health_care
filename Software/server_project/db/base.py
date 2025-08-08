@@ -13,6 +13,7 @@ from db.firebase_manager import (
     update_calories_daily,
     update_sleep_record,
     update_daily_sleep,
+    update_health_report,
 )
 from db.models import (
     UserData,
@@ -117,6 +118,9 @@ class BaseService:
 
     def add_sleep_record(self, user_id: str, start_time: str, end_time: str, duration_hours: float) -> None:
         update_sleep_record(user_id, start_time, end_time, duration_hours)
+
+    def set_health_report(self, user_id: str, report: str) -> None:
+        update_health_report(user_id, report)
 
     def add_daily_sleep(
         self,

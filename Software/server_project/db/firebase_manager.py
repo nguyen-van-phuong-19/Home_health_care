@@ -101,6 +101,11 @@ def update_latest_location(user_id: str, latitude: float, longitude: float, alti
 
 
 
+def update_health_report(user_id: str, report: str) -> None:
+    """Store a generated health report for the user."""
+    path = f"users/{user_id}/health_report"
+    get_reference(path).set({"report": report})
+
 def update_calories_daily(user_id: str, date: str, combined_daily_calories: float,
                           heart_rate_calories: float, accelerometer_calories: float) -> None:
     """
