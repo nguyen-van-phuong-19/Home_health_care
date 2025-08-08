@@ -7,6 +7,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:wearable_app/screens/history_screen/history_screen.dart';
 import 'package:wearable_app/screens/home_screen/widgets/build_stat_card.dart';
 import 'package:wearable_app/screens/sleep_screen/sleep_detail_screen.dart';
+import 'package:wearable_app/screens/qa_screen/qa_screen.dart';
 import 'package:wearable_app/services/firebase_service.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -61,6 +62,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   double _latitude = 0.0;
   double _longitude = 0.0;
+  String _healthReport = '';
 
   @override
   void initState() {
@@ -129,6 +131,16 @@ class _HomeScreenState extends State<HomeScreen> {
         });
       }
     });
+
+    // Listen health report
+    FirebaseService()
+        .listenToChanges('users/$_userId/health_report/report')
+        .listen((event) {
+      final raw = event.snapshot.value;
+      if (raw is String) {
+        setState(() => _healthReport = raw);
+      }
+    });
   }
 
   String _formatSleep(double hours) {
@@ -161,6 +173,12 @@ class _HomeScreenState extends State<HomeScreen> {
                     const SnackBar(content: Text('Chức năng Cài đặt chưa có')),
                   );
                   break;
+                case 'qa':
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const QAScreen()),
+                  );
+                  break;
                 case 'logout':
                   _signOut();
                   break;
@@ -171,6 +189,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   PopupMenuItem(value: 'info', child: Text('Thông tin')),
                   PopupMenuItem(value: 'ble', child: Text('BLE')),
                   PopupMenuItem(value: 'settings', child: Text('Cài đặt')),
+                  PopupMenuItem(value: 'qa', child: Text('Hỏi đáp')),
                   PopupMenuItem(value: 'logout', child: Text('Đăng xuất')),
                 ],
           ),
@@ -244,6 +263,18 @@ class _HomeScreenState extends State<HomeScreen> {
                 ],
               ),
               const SizedBox(height: 16),
+
+              if (_healthReport.isNotEmpty)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.lightBlue.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(_healthReport),
+                ),
+              if (_healthReport.isNotEmpty) const SizedBox(height: 16),
 
               // Sleep card
               GestureDetector(
